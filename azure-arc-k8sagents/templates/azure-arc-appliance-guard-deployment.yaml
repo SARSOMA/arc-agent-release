@@ -1,0 +1,225 @@
+{{ if .Values.systemDefaultValues.appliance.enabled}}
+{{ if .Values.systemDefaultValues.appliance.aadauth.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guard
+  namespace: azure-arc
+  labels:
+    app.kubernetes.io/name:  azure-arc-k8s
+    app.kubernetes.io/component: guard
+  annotations:
+    description: {{ .Chart.Description }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: azure-arc-k8s
+      app.kubernetes.io/component: guard
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: azure-arc-k8s
+        app.kubernetes.io/component: guard
+      annotations:
+        checksum/proxysecret: {{ include (print $.Template.BasePath "/azure-proxy-secret.yaml") . | sha256sum }}
+        checksum/fluent-bit-config: {{ include (print $.Template.BasePath "/azure-fluentbit-config-appliance-guard.yaml") . | sha256sum }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8443"
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      serviceAccountName: azure-arc-operatorsa
+      priorityClassName: system-node-critical
+{{- if .Values.systemDefaultValues.azureArcAgents.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.systemDefaultValues.azureArcAgents.nodeSelector | indent 8 }}
+{{- end }}
+{{- if .Values.systemDefaultValues.azureArcAgents.tolerations }}
+      tolerations:
+{{ toYaml .Values.systemDefaultValues.azureArcAgents.tolerations | indent 8 }}
+{{- end }}
+      initContainers:
+        - name: init-guard
+          image: "{{ .Values.systemDefaultValues.appliance.aadauth.guard_initcontainer_image }}:{{ .Values.systemDefaultValues.appliance.aadauth.guard_initcontainer_tag }}"
+          imagePullPolicy: {{ .Values.systemDefaultValues.image.imagePullPolicy }}
+{{- if .Values.systemDefaultValues.guard.initGuard.resources  }}
+          resources:
+{{ toYaml .Values.systemDefaultValues.guard.initGuard.resources | indent 12 }}
+{{- end }}
+          envFrom:
+          - configMapRef:
+              name: azure-clusterconfig
+          {{ if .Values.global.isProxyEnabled }}
+          - secretRef:
+              name: proxy-config
+          {{ end }}
+{{- if and (or .Values.global.isCustomCert .Values.global.isProxyEnabled) (.Values.global.proxyCert) }}
+          volumeMounts:
+          - name: ssl-certs
+            mountPath: /etc/ssl/certs/
+            readOnly: false
+          - mountPath: /usr/local/share/ca-certificates/proxy-cert.crt
+            subPath: proxy-cert.crt
+            name: proxy-certstore
+{{- end }}
+      containers:
+        - name: guard
+          image: "{{ .Values.systemDefaultValues.guard.repository }}/{{ .Values.systemDefaultValues.guard.releaseName }}/{{ .Values.systemDefaultValues.guard.image }}:{{ .Values.systemDefaultValues.guard.tag }}"
+          imagePullPolicy: {{ .Values.systemDefaultValues.image.imagePullPolicy }}
+          args:
+          - run
+          - "--v=10"
+          - "--tls-ca-file=/etc/pki/ca.crt"
+          - "--tls-cert-file=/etc/pki/aad-sso-webhook.crt"
+          - "--tls-private-key-file=/etc/pki/aad-sso-webhook.key"
+          - "--auth-providers=Azure"
+          - "--azure.auth-mode=passthrough"
+          - "--azure.skip-group-membership-resolution=true"
+          - "--azure.tenant-id={{ .Values.global.tenantId }}"
+          - "--azure.client-id={{ .Values.systemDefaultValues.appliance.aadauth.clientId }}"
+          - "--azure.use-group-uid=true"
+          - "--azure.graph-call-on-overage-claim=true"
+          - "--azure.verify-clientID=true"
+          - "--azure.use-group-uid=true"
+          - "--azure.enable-pop=true"
+          - "--azure.pop-hostname=$(POP_HOSTNAME)"
+          - "--azure.pop-token-validity-duration=15m"
+          - "--clock-check-interval=0m"
+          - "--server-read-timeout=15s"
+          - "--server-write-timeout=25s"
+{{ if eq .Values.global.azureEnvironment "AZUREDOGFOOD" }}
+          - "--azure.environment=AZURESTACKCLOUD"
+{{ end }}
+          env:
+            - name: POP_HOSTNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: appliance-pop-token-hostname
+                  key: POP_HOSTNAME
+{{ if eq .Values.global.azureEnvironment "AZUREDOGFOOD" }}
+            - name: AZURE_ENVIRONMENT_FILEPATH
+              value: /etc/azure/env.json
+{{ end }}
+{{ if .Values.global.isProxyEnabled }}
+          envFrom:
+            - secretRef:
+                name: proxy-config
+{{ end }}
+{{- if .Values.systemDefaultValues.guard.resources  }}
+          resources:
+{{ toYaml .Values.systemDefaultValues.appliance.resources | indent 12 }}
+{{- end }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8443
+              scheme: HTTPS
+            initialDelaySeconds: 30
+          securityContext:
+            runAsUser: 0
+            allowPrivilegeEscalation: false
+          ports:
+          - name: api
+            containerPort: 8443
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8443
+              scheme: HTTPS
+            initialDelaySeconds: 30
+          resources: {}
+          volumeMounts:
+          - name: pki
+            mountPath: /etc/pki
+{{ if eq .Values.global.azureEnvironment "AZUREDOGFOOD" }}
+          - name: guard-df-azure-env
+            mountPath: /etc/azure
+{{ end }}
+{{- if and (or .Values.global.isCustomCert .Values.global.isProxyEnabled) (.Values.global.proxyCert) }}
+          - name: ssl-certs
+            mountPath: /etc/ssl/certs/
+            readOnly: false
+{{- end }}
+        - name: fluent-bit
+          image: "{{ .Values.systemDefaultValues.image.repository }}/{{ .Values.systemDefaultValues.image.releaseName }}/{{ index .Values.systemDefaultValues "fluent-bit" "image" }}:{{ index .Values.systemDefaultValues "fluent-bit" "tag" }}"
+          imagePullPolicy: {{ .Values.systemDefaultValues.image.imagePullPolicy }}
+{{ $fluentBit := index .Values.systemDefaultValues "fluent-bit" "resources" }}
+{{- if  $fluentBit  }}
+          resources:
+{{ $fluentBit | toYaml | indent 12 }}
+{{- end }}
+          envFrom:
+            - configMapRef:
+                name: azure-clusterconfig
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: AGENT_TYPE
+              value: "ApplianceAgent"
+            - name: AGENT_NAME
+              value: "ApplianceAuthnWebhook"
+          volumeMounts:
+          - name: varlog
+            mountPath: /var/log
+            readOnly: true
+          - name: varlibdockercontainers
+            mountPath: {{ index .Values.systemDefaultValues "fluent-bit" "containerLogPath" }}
+            readOnly: true
+          - name: fluentbit-clusterconfig
+            mountPath: /fluent-bit/etc/
+      volumes:
+        - name: pki
+          hostPath:
+            path: /etc/kubernetes/pki
+            type: DirectoryOrCreate
+        - name: varlog
+          hostPath:
+            path: /var/log
+        - name: varlibdockercontainers
+          hostPath:
+            path: {{ index .Values.systemDefaultValues "fluent-bit" "containerLogPath" }}
+        - name: fluentbit-clusterconfig
+          configMap:
+            name: azure-fluentbit-config-appliance-guard
+{{- if eq .Values.global.azureEnvironment "AZUREDOGFOOD" }}
+        - name: guard-df-azure-env
+          configMap:
+            name: guard-df-azure-env
+{{- end }}
+{{- if and (or .Values.global.isCustomCert .Values.global.isProxyEnabled) (.Values.global.proxyCert) }}
+        - name: proxy-certstore
+          secret:
+            secretName: proxy-cert
+        - name: ssl-certs
+          emptyDir: {}
+{{- end }}
+{{- if eq .Values.global.azureEnvironment "AZUREDOGFOOD" }}
+# This confimap override the cloud endpoint used by guard (autorest SDK)
+# This is needed because AZUREDOGFOOD is not an official cloud env in autorest.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: guard-df-azure-env
+  namespace: azure-arc
+  labels:
+    app.kubernetes.io/name: azure-arc-k8s
+    app.kubernetes.io/component: guard
+data:
+  env.json: |
+    {
+      "name": "AZURESTACKCLOUD",
+      "ActiveDirectoryEndpoint": "https://login.windows-ppe.net/",
+      "graphEndpoint": "https://graph.ppe.windows.net/",
+      "resourceIdentifiers": {
+        "graph": "https://graph.ppe.windows.net/"
+       }
+    }
+{{- end }}
+{{- end }}
+{{- end }}

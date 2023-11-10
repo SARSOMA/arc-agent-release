@@ -1,0 +1,105 @@
+{{ if .Values.systemDefaultValues.extensionoperator.enabled}}
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.2
+    meta.helm.sh/release-name: {{ .Release.Name }}
+    meta.helm.sh/release-namespace: {{ .Release.Namespace }}
+  creationTimestamp: null
+  name: extensionevents.clusterconfig.azure.com
+spec:
+  group: clusterconfig.azure.com
+  names:
+    kind: ExtensionEvents
+    listKind: ExtensionEventsList
+    plural: extensionevents
+    singular: extensionevents
+  scope: Namespaced
+  versions:
+  - name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: ExtensionEvents is the Schema for the extensionevents API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ExtensionEventsSpec defines the desired state of ExtensionEvents
+            properties:
+              endTime:
+                format: date-time
+                type: string
+              extensionEvents:
+                items:
+                  properties:
+                    eventTime:
+                      format: date-time
+                      type: string
+                    logType:
+                      type: string
+                    source:
+                      type: string
+                    message:
+                      type: string
+                    troubleshootLink:
+                      type: string
+                    innerError:
+                      type: string
+                  required:
+                  - logType
+                  - message
+                  type: object
+                type: array
+              extensionName:
+                type: string
+              operationId:
+                type: string
+              armOperationId:
+                type: string
+              operationName:
+                type: string
+              operationStatus:
+                type: string
+              extensionType:
+                type: string
+              extensionVersion:
+                type: string
+              startTime:
+                format: date-time
+                type: string
+              timeoutTime:
+                format: date-time
+                type: string
+            type: object
+          status:
+            description: ExtensionEventsStatus defines the observed state of ExtensionEvents
+            properties:
+              observedGeneration:
+                format: int64
+                type: integer
+              retryCount:
+                format: int64
+                type: integer
+              syncTime:
+                format: date-time
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+{{ end }}

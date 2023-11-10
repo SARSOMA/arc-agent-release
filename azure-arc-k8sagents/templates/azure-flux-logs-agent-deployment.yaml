@@ -1,0 +1,108 @@
+{{ if and (.Values.systemDefaultValues.fluxlogsagent.enabled) (not .Values.systemDefaultValues.appliance.enabled)}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flux-logs-agent
+  namespace: azure-arc
+  labels:
+    app.kubernetes.io/name: azure-arc-k8s
+    app.kubernetes.io/component: flux-logs-agent
+  annotations:
+    description: {{ .Chart.Description }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: azure-arc-k8s
+      app.kubernetes.io/component: flux-logs-agent
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: azure-arc-k8s
+        app.kubernetes.io/component: flux-logs-agent
+      annotations:
+        checksum/proxysecret: {{ include (print $.Template.BasePath "/azure-proxy-secret.yaml") . | sha256sum }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+    spec:
+      serviceAccountName:
+        {{- include "platformserviceaccount.name" . | indent 8 }}
+{{- if .Values.systemDefaultValues.azureArcAgents.affinity }}
+      affinity:
+{{ toYaml .Values.systemDefaultValues.azureArcAgents.affinity | indent 8 }}
+{{- end }}
+{{- if .Values.systemDefaultValues.azureArcAgents.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.systemDefaultValues.azureArcAgents.nodeSelector | indent 8 }}
+{{- end }}
+{{- if .Values.systemDefaultValues.azureArcAgents.tolerations }}
+      tolerations:
+{{ toYaml .Values.systemDefaultValues.azureArcAgents.tolerations | indent 8 }}
+{{- end }}
+      hostIPC: false
+      hostPID: false
+      hostNetwork: false
+      containers:
+        - name: flux-logs-agent
+          image: "{{ .Values.systemDefaultValues.image.repository }}/{{ .Values.systemDefaultValues.image.releaseName }}/{{ .Values.systemDefaultValues.fluxlogsagent.image }}:{{ .Values.systemDefaultValues.fluxlogsagent.tag }}"
+          imagePullPolicy: {{ .Values.systemDefaultValues.image.imagePullPolicy }}
+{{- if .Values.systemDefaultValues.azureArcAgents.resources  }}
+          resources:
+{{ toYaml .Values.systemDefaultValues.azureArcAgents.resources | indent 12 }}
+{{- end }}
+          envFrom:
+            - configMapRef:
+                name: azure-clusterconfig
+          {{ if .Values.global.isProxyEnabled }}
+            - secretRef:
+                name: proxy-config
+          {{ end }}
+
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: {{ .Values.global.containerUser}}
+            runAsGroup: {{ .Values.global.containerGroup}}
+            
+          ports:
+          - containerPort: 8082
+          {{ if .Values.systemDefaultValues.IsDebug}}
+          - containerPort: 40000
+            name: debug
+            protocol: TCP
+          securityContext:
+            capabilities:
+              add:
+              - SYS_PTRACE
+          {{end}}
+{{- if and (or .Values.global.isCustomCert .Values.global.isProxyEnabled) (.Values.global.proxyCert) }}
+          volumeMounts:
+            - name: ssl-certs
+              mountPath: /etc/ssl/certs/
+              readOnly: false
+            - mountPath: /usr/local/share/ca-certificates/proxy-cert.crt
+              subPath: proxy-cert.crt
+              name: proxy-certstore  
+      volumes:
+        - name: proxy-certstore
+          secret:
+            secretName: proxy-cert
+        - name: ssl-certs
+          emptyDir: {}
+{{- end }}
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: flux-logs-agent
+  namespace: azure-arc
+spec:
+  selector:
+    app.kubernetes.io/name: azure-arc-k8s
+    app.kubernetes.io/component: flux-logs-agent
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8082
+{{end}}

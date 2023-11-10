@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: azure-fluentbit-config
+  namespace: azure-arc
+data:
+  fluent-bit.conf: |
+    [SERVICE]
+        Flush         30
+        Log_Level     info
+        Daemon        off
+        Parsers_File  parsers.conf
+        HTTP_Server   Off
+
+    @INCLUDE input-kubernetes.conf
+    @INCLUDE filter.conf
+    @INCLUDE output.conf
+
+  input-kubernetes.conf: |
+    [INPUT]
+        Name              tail
+        Tag               azure-arc.${AGENT_NAME}.*
+        Path              /var/log/con*/${POD_NAME}*azure-arc*.log
+        Exclude_Path      /var/log/con*/${POD_NAME}*azure-arc_fluent-bit*.log
+        Multiline         On
+        Parser_Firstline  first_line
+        Mem_Buf_Limit     100KB
+        Buffer_Chunk_Size 1KB
+
+    [INPUT]
+        Name              tail
+        Tag               azure-arc.fluent-bit.*
+        Path              /var/log/con*/${POD_NAME}*azure-arc_fluent-bit*.log
+        Multiline         On
+        Parser_Firstline  first_line
+        Mem_Buf_Limit     100KB
+        Buffer_Chunk_Size 1KB
+
+  filter.conf: |
+    [FILTER]
+        Name lua
+        Match azure-arc.*
+        script /fluent-bit/bin/helpers.lua
+        call process
+
+    [FILTER]
+        Name record_modifier
+        Match azure-arc.${AGENT_NAME}.*
+        Record AgentNameOverride ${AGENT_NAME}
+
+    [FILTER]
+        Name record_modifier
+        Match azure-arc.fluent-bit.*
+        Record AgentNameOverride ${AGENT_NAME}-Fluentbit
+
+  parsers.conf: |
+    [PARSER]
+        Name        first_line
+        Format      regex
+        Regex       ^{"log":"(?!\\u0009)(?<log>\bpanic([^,"]|\n)*)"
+
+  output.conf: |
+    [OUTPUT]
+        Name        forward
+        Match       azure-arc.*
+        Host        logcollector
+        Port        24224

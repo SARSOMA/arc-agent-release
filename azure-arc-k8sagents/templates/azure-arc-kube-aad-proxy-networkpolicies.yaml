@@ -1,0 +1,35 @@
+{{ if and (index .Values.systemDefaultValues "clusterconnect-agent"  "enabled") (not .Values.systemDefaultValues.appliance.enabled) }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kube-aad-proxy-network-policy
+  namespace: azure-arc
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+    helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    app.kubernetes.io/name: azure-arc-k8s
+    app.kubernetes.io/component: kube-aad-proxy
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: azure-arc-k8s
+      app.kubernetes.io/component: kube-aad-proxy
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+  # Allow traffic only from clusterconnect-agent and metrics-agent pod in azure-arc ns
+    - namespaceSelector:
+        matchLabels:
+          name: azure-arc
+    - podSelector:
+         matchLabels:
+           app.kubernetes.io/name: azure-arc-k8s
+           app.kubernetes.io/component: clusterconnect-agent
+    - podSelector:
+         matchLabels:
+           app.kubernetes.io/name: azure-arc-k8s
+           app.kubernetes.io/component: metrics-agent
+{{end}}

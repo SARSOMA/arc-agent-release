@@ -1,0 +1,11 @@
+{{ if .Values.systemDefaultValues.appliance.enabled}}
+{{ if .Values.systemDefaultValues.appliance.aadauth.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: appliance-pop-token-hostname
+  namespace: azure-arc
+data:
+  POP_HOSTNAME: ""
+{{- end }}
+{{- end }}

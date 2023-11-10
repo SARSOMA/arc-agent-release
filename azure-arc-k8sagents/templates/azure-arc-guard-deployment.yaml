@@ -1,0 +1,311 @@
+{{- if .Values.systemDefaultValues.guard.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app.kubernetes.io/name: azure-arc-k8s
+    app.kubernetes.io/component: guard
+  name: guard
+  namespace: azure-arc
+  annotations:
+    description: {{ .Chart.Description }}
+spec:
+  replicas: {{ int .Values.systemDefaultValues.guard.replicas }}
+  strategy: {}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: azure-arc-k8s
+      app.kubernetes.io/component: guard
+  template:
+    metadata:
+      annotations:
+        checksum/proxysecret: {{ include (print $.Template.BasePath "/azure-proxy-secret.yaml") . | sha256sum }}
+        checksum/guard-secret: {{ include (print $.Template.BasePath "/azure-guard-secret.yaml") . | sha256sum }}
+        checksum/fluent-bit-config: {{ include (print $.Template.BasePath "/azure-fluentbit-config.yaml") . | sha256sum }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8443"
+      creationTimestamp: null
+      labels:
+        app.kubernetes.io/name: azure-arc-k8s
+        app.kubernetes.io/component: guard
+    spec:
+      {{ if semverCompare ">=1.17.0" .Capabilities.KubeVersion.Version }}
+      priorityClassName: system-node-critical
+      {{ end }}
+      serviceAccountName:
+        {{- include "platformserviceaccount.name" . | indent 8 }}
+{{- if or .Values.systemDefaultValues.azureArcAgents.tolerations (ne .Values.systemDefaultValues.guard.pkiHostPath "") }}
+      tolerations:
+{{- if ne .Values.systemDefaultValues.guard.pkiHostPath "" }}
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/control-plane
+{{- end }}
+{{- if .Values.systemDefaultValues.azureArcAgents.tolerations }}
+{{ toYaml .Values.systemDefaultValues.azureArcAgents.tolerations | indent 8 }}
+{{- end }}
+{{- end}}
+{{- if .Values.systemDefaultValues.azureArcAgents.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.systemDefaultValues.azureArcAgents.nodeSelector | indent 8 }}
+{{- if ne .Values.systemDefaultValues.guard.pkiHostPath "" }}
+        node-role.kubernetes.io/control-plane: ""
+{{- end }}
+{{- end }}
+      initContainers:
+      - name: init-guard
+        image: "{{ .Values.systemDefaultValues.image.repository }}/{{ .Values.systemDefaultValues.image.releaseName }}/{{ index .Values.systemDefaultValues.guard.initGuard "init-image" }}:{{ index .Values.systemDefaultValues.guard.initGuard "init-tag" }}"
+        imagePullPolicy: {{ .Values.systemDefaultValues.image.imagePullPolicy }}
+{{- if .Values.systemDefaultValues.guard.initGuard.resources  }}
+        resources:
+{{ toYaml .Values.systemDefaultValues.guard.initGuard.resources | indent 12 }}
+{{- end }}
+        envFrom:
+            - configMapRef:
+                name: azure-clusterconfig
+        {{ if .Values.global.isProxyEnabled }}
+            - secretRef:
+                name: proxy-config
+        {{ end }}
+        volumeMounts:
+{{- if eq .Values.systemDefaultValues.guard.pkiHostPath "" }}
+        - name: guard-pki
+          mountPath: /etc/guard/pki
+          readOnly: false
+        - name: guard-certs
+          mountPath: /etc/guard/certs
+          readOnly: false
+{{- end }}
+{{- if and (or .Values.global.isCustomCert .Values.global.isProxyEnabled) (.Values.global.proxyCert) }}
+        - name: ssl-certs
+          mountPath: /etc/ssl/certs/
+          readOnly: false
+        - mountPath: /usr/local/share/ca-certificates/proxy-cert.crt
+          subPath: proxy-cert.crt
+          name: proxy-certstore
+{{- end }}
+      hostIPC: false
+      hostPID: false
+      hostNetwork: false
+      containers:
+      - name: guard
+        image: "{{ .Values.systemDefaultValues.guard.repository }}/{{ .Values.systemDefaultValues.guard.releaseName }}/{{ .Values.systemDefaultValues.guard.image }}:{{ .Values.systemDefaultValues.guard.tag }}"
+        imagePullPolicy: {{ .Values.systemDefaultValues.image.imagePullPolicy }}
+        args:
+        - run
+        - "--v=5"
+        - "--tls-ca-file=/etc/guard/certs/{{ .Values.systemDefaultValues.guard.caCertFileName }}"
+        - "--tls-cert-file=/etc/guard/certs/{{ .Values.systemDefaultValues.guard.serverCertFileName }}"
+        - "--tls-private-key-file=/etc/guard/certs/{{ .Values.systemDefaultValues.guard.serverKeyFileName }}"
+        - "--auth-providers=Azure"
+        - "--azure.auth-mode={{ .Values.systemDefaultValues.guard.authnMode }}"
+        - "--azure.tenant-id={{ .Values.global.tenantId }}"
+        {{ if eq .Values.systemDefaultValues.guard.authnMode "arc" }}
+        - "--azure.auth-resource-id=/subscriptions/{{ .Values.global.subscriptionId}}/resourceGroups/{{ .Values.global.resourceGroupName}}/providers/{{ .Values.global.rpNamespace}}/{{ .Values.global.cluster_type }}/{{ .Values.global.resourceName}}"
+        - "--azure.region={{ .Values.global.location }}"
+        - "--azure.enable-pop=true"
+        - "--azure.pop-hostname=/subscriptions/{{ .Values.global.subscriptionId}}/resourceGroups/{{ .Values.global.resourceGroupName}}/providers/{{ .Values.global.rpNamespace}}/{{ .Values.global.cluster_type }}/{{ .Values.global.resourceName}}"
+        {{ end }}
+        - "--azure.client-id={{ .Values.systemDefaultValues.guard.clientId }}"
+        - "--azure.verify-clientID=true"
+        - "--azure.use-group-uid=true"
+        - "--server-write-timeout=25s"
+        - "--server-read-timeout=15s"
+        - "--azure.graph-call-on-overage-claim=true"
+        - "--clock-check-interval=0m"
+        - "--azure.environment={{ .Values.global.azureEnvironment }}"
+        - "--authz-providers=Azure"
+        - "--azure.authz-mode={{ .Values.systemDefaultValues.guard.authzMode }}"
+        - "--azure.resource-id=/subscriptions/{{ .Values.global.subscriptionId}}/resourceGroups/{{ .Values.global.resourceGroupName}}/providers/{{ .Values.global.rpNamespace}}/{{ .Values.global.cluster_type }}/{{ .Values.global.resourceName}}"
+        - "--azure.skip-authz-check={{ .Values.systemDefaultValues.guard.skipAuthzCheck }}"
+        - "--azure.use-ns-resource-scope-format={{ .Values.systemDefaultValues.resourceSyncAgent.enableNamespaceResources }}"
+        {{ if .Values.global.isProxyEnabled }}
+        envFrom:
+          - secretRef:
+              name: proxy-config
+        {{ end }}
+        securityContext:
+{{- if eq .Values.systemDefaultValues.guard.pkiHostPath "" }}
+            runAsNonRoot: true
+            runAsUser: {{ .Values.global.containerUser}}
+            runAsGroup: {{ .Values.global.containerGroup}}
+{{- else }}
+# Guard needs to run as root for host path pki path scenario as only root user has access on pki certs on host
+            runAsUser: 0
+{{- end }}
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+        env:
+          {{ if ne .Values.systemDefaultValues.guard.authnMode "arc" }}
+          - name: AZURE_CLIENT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: guard-secret
+                key: client-secret
+          {{ end }}
+{{- if .Values.systemDefaultValues.guard.resources  }}
+        resources:
+{{ toYaml .Values.systemDefaultValues.guard.resources | indent 12 }}
+{{- end }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8443
+            scheme: HTTPS
+          initialDelaySeconds: 30
+        ports:
+        - containerPort: 8443
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8443
+            scheme: HTTPS
+          initialDelaySeconds: 30
+        resources: {}
+        volumeMounts:
+{{- if ne .Values.systemDefaultValues.guard.pkiHostPath "" }}
+        - name: guard-pki
+          mountPath: /etc/guard/certs
+          readOnly: true
+{{- else }}
+        - name: guard-certs
+          mountPath: /etc/guard/certs
+          readOnly: false
+{{- end }}
+{{- if and (or .Values.global.isCustomCert .Values.global.isProxyEnabled) (.Values.global.proxyCert) }}
+        - name: ssl-certs
+          mountPath: /etc/ssl/certs/
+          readOnly: false
+{{- end }}
+{{- if eq .Values.systemDefaultValues.guard.authnMode "arc" }}
+      - env:
+        - name: TOKEN_NAMESPACE
+          value: azure-arc
+        - name: CLUSTER_IDENTITY
+          value: "true"
+        - name: CLUSTER_TYPE
+          value: {{ .Values.global.cluster_type }}
+        - name: MSI_ADAPTER_LISTENING_PORT
+          value: "8421"
+        - name: MANAGED_IDENTITY_AUTH
+          value: "true"
+        - name: TEST_MODE
+          value: "false"
+        - name: TEST_FILE
+          value: /data/token
+        image: "{{ .Values.systemDefaultValues.MsiAdapterArtifactPath }}"
+        imagePullPolicy: Always
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: 9090
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 15
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: msi-adapter
+        resources:
+          limits:
+            cpu: 50m
+            memory: 100Mi
+          requests:
+            cpu: 20m
+            memory: 50Mi
+        securityContext:
+          capabilities:
+            add:
+            - NET_ADMIN
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+{{- end }}
+      - name: fluent-bit
+        image: "{{ .Values.systemDefaultValues.image.repository }}/{{ .Values.systemDefaultValues.image.releaseName }}/{{ index .Values.systemDefaultValues "fluent-bit" "image" }}:{{ index .Values.systemDefaultValues "fluent-bit" "tag" }}"
+        imagePullPolicy: {{ .Values.systemDefaultValues.image.imagePullPolicy }}
+        securityContext:
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+{{ $fluentBit := index .Values.systemDefaultValues "fluent-bit" "resources" }}
+{{- if  $fluentBit  }}
+        resources:
+{{ $fluentBit | toYaml | indent 12 }}
+{{- end }}
+        envFrom:
+          - configMapRef:
+              name: azure-clusterconfig
+        env:
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: AGENT_TYPE
+            value: "ConnectAgent"
+          - name: AGENT_NAME
+            value: "Guard"
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log
+          readOnly: true
+        - name: varlibdockercontainers
+          mountPath: {{ index .Values.systemDefaultValues "fluent-bit" "containerLogPath" }}
+          readOnly: true
+        - name: fluentbit-clusterconfig
+          mountPath: /fluent-bit/etc/
+      volumes:
+{{- if ne .Values.systemDefaultValues.guard.pkiHostPath "" }}
+        - name: guard-pki
+          hostPath:
+            path: {{ .Values.systemDefaultValues.guard.pkiHostPath }}
+            type: DirectoryOrCreate
+{{- else }}
+        - name: guard-pki
+          secret:
+            secretName: guard-pki-secret
+        - name: guard-certs
+          emptyDir: {}
+{{- end }}
+        - name: varlog
+          hostPath:
+            path: /var/log
+        - name: varlibdockercontainers
+          hostPath:
+            path: {{ index .Values.systemDefaultValues "fluent-bit" "containerLogPath" }}
+        - name: fluentbit-clusterconfig
+          configMap:
+            name: azure-fluentbit-config
+{{- if and (or .Values.global.isCustomCert .Values.global.isProxyEnabled) (.Values.global.proxyCert) }}
+        - name: proxy-certstore
+          secret:
+            secretName: proxy-cert
+        - name: ssl-certs
+          emptyDir: {}
+{{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    app.kubernetes.io/name: azure-arc-k8s
+    app.kubernetes.io/component: guard
+  name: guard
+  namespace: azure-arc
+spec:
+{{- if .Values.systemDefaultValues.guard.clusterIP }}
+  clusterIP: "{{ .Values.systemDefaultValues.guard.clusterIP }}"
+{{- end }}
+  type: ClusterIP
+  ports:
+  - name: api
+    port: 443
+    protocol: TCP
+    targetPort: 8443
+  selector:
+    app.kubernetes.io/name: azure-arc-k8s
+    app.kubernetes.io/component: guard
+{{- end }}

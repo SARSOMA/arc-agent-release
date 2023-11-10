@@ -1,0 +1,63 @@
+{{ if .Values.systemDefaultValues.extensionoperator.enabled}}
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.2
+    meta.helm.sh/release-name: {{ .Release.Name }}
+    meta.helm.sh/release-namespace: {{ .Release.Namespace }}
+  creationTimestamp: null
+  name: configsyncstatuses.clusterconfig.azure.com
+spec:
+  group: clusterconfig.azure.com
+  names:
+    kind: ConfigSyncStatus
+    listKind: ConfigSyncStatusList
+    plural: configsyncstatuses
+    singular: configsyncstatus
+  scope: Namespaced
+  versions:
+  - name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: ConfigSyncStatus is the Schema for the configsyncstatuses API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ConfigSyncStatusSpec defines the desired state of ConfigSyncStatus
+            properties:
+              configApplyTime:
+                format: date-time
+                type: string
+              configKind:
+                type: string
+              resourceVersionSynced:
+                type: string
+              agentOperationID:
+                type: string
+              syncTime:
+                format: date-time
+                type: string
+            type: object
+          status:
+            description: ConfigSyncStatusStatus defines the observed state of ConfigSyncStatus
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+{{ end }}

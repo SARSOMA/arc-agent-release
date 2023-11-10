@@ -1,0 +1,73 @@
+[agent]
+  interval = "300s"
+  flush_interval = "45s"
+  metric_batch_size = 250
+  metric_buffer_limit = 1000
+
+[[inputs.prometheus]]
+{{ if or .Values.systemDefaultValues.healthstatecontroller.enabled (eq (lower .Values.global.cluster_type) "connectedclusters") (eq .Values.global.azureEnvironment "AZUREDOGFOOD") (eq (lower .Values.global.location) "eastus2euap") }}
+  kubernetes_services = ["http://extension-manager-svc.azure-arc:8081/metrics"]
+{{ end }}
+  monitor_kubernetes_pods = true
+  kubernetes_label_selector = "app.kubernetes.io/name=azure-arc-k8s"
+  monitor_kubernetes_pods_namespace = "azure-arc"
+  bearer_token = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+  tls_ca = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+  insecure_skip_verify = true
+  response_timeout = "15s"
+  namedrop = ["rest_client_requests_*", "rest_client_request_*", "go_memstats_gc_*", "go_memstats_stack_*", "go_threads*", "go_memstats_mcache_*_bytes", "go_memstats_mspan_*_bytes", "go_memstats_last*", "go_memstats_next*", "go_memstats_other*", "go_memstats_sys*", "go_memstats_heap_idle_bytes", "go_memstats_heap_inuse_bytes", "go_memstats_heap_objects", "go_memstats_heap_released_bytes", "go_memstats_heap_sys_bytes", "process_*_fds", "process_threads_*", "process_*_pagefault_*", "process_disk_*", "process_*_context_switches_*", "process_num*", "process_open*", "process_resident*", "process_working*", "dotnet_collection_count_total*", "dotnet_total_memory_bytes", "go_gc_duration_seconds", "go_goroutines", "go_info", "internal_*", "workqueue_*", "kubernetes_node", "version_*", "process_virtual_memory_max_bytes", "go_gc_pauses_seconds_total", "go_sched_latencies_seconds"]
+
+[[inputs.prometheus]]
+  monitor_kubernetes_pods = true
+  kubernetes_label_selector = "app.kubernetes.io/component=osm-controller"
+  monitor_kubernetes_pods_namespace = "arc-osm-system"
+  bearer_token = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+  tls_ca = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+  insecure_skip_verify = true
+  namedrop = ["rest_client_requests_*", "rest_client_request_*", "go_memstats_gc_*", "go_memstats_stack_*", "go_threads*", "go_memstats_mcache_*_bytes", "go_memstats_mspan_*_bytes", "go_memstats_last*", "go_memstats_next*", "go_memstats_other*", "go_memstats_sys*", "go_memstats_heap_idle_bytes", "go_memstats_heap_inuse_bytes", "go_memstats_heap_objects", "go_memstats_heap_released_bytes", "go_memstats_heap_sys_bytes", "process_*_fds", "process_threads_*", "process_*_pagefault_*", "process_disk_*", "process_*_context_switches_*", "process_num*", "process_open*", "process_resident*", "process_working*", "dotnet_collection_count_total*", "dotnet_total_memory_bytes", "go_gc_duration_seconds", "go_goroutines", "go_info", "internal_*", "workqueue_*", "kubernetes_node", "version_*", "process_virtual_memory_max_bytes", "go_gc_pauses_seconds_total", "go_sched_latencies_seconds"]
+
+[[inputs.internal]]
+  collect_memstats = true
+  [inputs.internal.tags]
+    service = "metrics"
+
+[[inputs.kube_inventory]]
+  url = "https://kubernetes.default.svc"
+  namespace = ""
+  bearer_token = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+  tls_ca = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+  response_timeout = "5s"
+  resource_include = [ "nodes" ]
+
+{{ if eq (.Values.global.location | lower) "eastus2euap" }}
+[[aggregators.basicstats]]
+  period = "300s"
+  grace = "10s"
+  drop_original = true
+  stats = ["non_negative_diff"]
+  namepass = ["gitconfig_install", "gitconfig_retry", "gitconfig_delete", "gitconfig_heartbeat", "flux_*", "helm_*", "extension_*"]
+{{ end }}
+
+{{ if .Values.systemDefaultValues.debugLogging }}
+[[outputs.file]]
+  files = ["stdout"]
+{{ end }}
+
+{{ if .Values.global.rpNamespace }}
+[[outputs.http_mdm]]
+  url = "https://$AZURE_REGION.dp.kubernetesconfiguration.azure.$DP_SUFFIX/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP/provider/$RP_NAMESPACE-$CLUSTER_TYPE/clusters/$AZURE_RESOURCE_NAME/agentDiagnostics/postMetrics?api-version=2019-11-01-Preview"
+
+{{else}}
+[[outputs.http_mdm]]
+  url = "https://$AZURE_REGION.dp.kubernetesconfiguration.azure.$DP_SUFFIX/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP/provider/$CLUSTER_TYPE/clusters/$AZURE_RESOURCE_NAME/agentDiagnostics/postMetrics?api-version=2019-11-01-Preview"
+{{end}}
+
+  token_url = "$AZURE_SUBSCRIPTION_ID/$AZURE_RESOURCE_GROUP/$CLUSTER_TYPE/$AZURE_RESOURCE_NAME"
+  data_format = "mdm"
+  dimension_filter = "MdmDimension_(.*)"
+  timeout = "60s"
+  metric_batch_size = 250
+  metric_buffer_limit = 500
+
+  [outputs.http_mdm.headers]
+    Content-Type = "application/json; charset=utf-8"

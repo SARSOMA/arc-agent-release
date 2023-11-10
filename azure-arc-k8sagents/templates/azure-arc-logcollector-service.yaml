@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    app.kubernetes.io/name: azure-arc-k8s
+    app.kubernetes.io/component: logcollector
+  name: logcollector
+  namespace: azure-arc
+spec:
+  type: ClusterIP
+  ports:
+  - name: api
+    port: 24224
+    protocol: TCP
+    targetPort: 24224
+  selector:
+    app.kubernetes.io/name: azure-arc-k8s
+    app.kubernetes.io/component: logcollector

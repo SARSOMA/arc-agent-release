@@ -1,0 +1,32 @@
+{
+    "Name": "AZURESTACKCLOUD",
+    "ManagementPortalURL": "https://windows.azure-test.net/",
+    "PublishSettingsURL": "https://windows.azure-test.net/publishsettings/index",
+    "ServiceManagementEndpoint": "https://management-preview.core.windows-int.net/",
+    "ResourceManagerEndpoint": "https://api-dogfood.resources.windows-int.net/",
+    "ActiveDirectoryEndpoint": "https://login.windows-ppe.net/",
+    "GalleryEndpoint": "https://df.gallery.azure-test.net/",
+    "KeyVaultEndpoint": "https://vault.azure.net/",
+    "GraphEndpoint": "https://graph.ppe.windows.net/",
+    "ServiceBusEndpoint": "https://servicebus.windows.net/",
+    "BatchManagementEndpoint": "https://batch.core.windows.net/",
+    "StorageEndpointSuffix": "core.windows.net",
+    "SQLDatabaseDNSSuffix": "database.windows.net",
+    "TrafficManagerDNSSuffix": "trafficmanager.net",
+    "KeyVaultDNSSuffix": "vault.azure.net",
+    "ServiceBusEndpointSuffix": "servicebus.windows.net",
+    "ServiceManagementVMDNSSuffix": "cloudapp.net",
+    "ResourceManagerVMDNSSuffix": "cloudapp.azure.com",
+    "ContainerRegistryDNSSuffix": "azurecr.io",
+    "CosmosDBDNSSuffix": "documents.azure.com",
+    "TokenAudience": "https://api-dogfood.resources.windows-int.net/",
+    "APIManagementHostNameSuffix": "azure-api.net",
+    "ResourceIdentifiers": {
+        "Graph": "https://graph.ppe.windows.net/",
+        "KeyVault": "https://vault.azure.net",
+        "Datalake": "https://datalake.azure.net/",
+        "Batch": "https://batch.core.windows.net/",
+        "OperationalInsights": "https://api.loganalytics.io",
+        "Storage": "https://storage.azure.com/"
+    }
+}

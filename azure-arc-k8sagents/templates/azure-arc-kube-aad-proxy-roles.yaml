@@ -1,0 +1,84 @@
+{{ if and (and (index .Values.systemDefaultValues "clusterconnect-agent"  "enabled") (not .Values.systemDefaultValues.appliance.enabled)) (not .Values.global.isLeastPrivilegesMode) }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: azure-arc-kube-aad-proxy-sa
+  namespace: azure-arc
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: azure-arc-kube-aad-proxy-operator
+  labels:
+    app.kubernetes.io/name: azure-arc-k8s
+    app.kubernetes.io/component: aad-proxy-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - "users"
+  - "groups"
+  - "serviceaccounts"
+  verbs:
+  - "impersonate"
+- apiGroups:
+  - "authentication.k8s.io"
+  resources:
+  - "userextras/oid"
+  - "userextras/obo"
+  verbs:
+  - "impersonate"
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: azure-arc-kube-aad-proxy-operator-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: azure-arc-kube-aad-proxy-operator
+subjects:
+- kind: ServiceAccount
+  name: azure-arc-kube-aad-proxy-sa
+  namespace: azure-arc
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: azure-arc-kube-aad-proxy-operator-secret-reader
+  namespace: azure-arc
+  labels:
+    app.kubernetes.io/name: azure-arc-k8s
+    app.kubernetes.io/component: aad-proxy-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - "secrets"
+{{- if eq .Values.global.azureEnvironment "AZUREDOGFOOD" }}
+  resourceNames:
+  - "azure-arc-connect-privatekey"
+{{ end }}
+  verbs: ["get","watch","list"]
+{{- if ne .Values.global.azureEnvironment "AZUREDOGFOOD" }}
+- apiGroups:
+  - "clusterconfig.azure.com"
+  resources:
+  - "azureclusteridentityrequests"
+  - "azureclusteridentityrequests/status"
+  verbs: ["get","watch","list","create", "update", "patch", "delete" ]
+{{ end }}
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: azure-arc-kube-aad-proxy-operator-secret-binding
+  namespace: azure-arc
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: azure-arc-kube-aad-proxy-operator-secret-reader
+subjects:
+- kind: ServiceAccount
+  name: azure-arc-kube-aad-proxy-sa
+{{ end }}

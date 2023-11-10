@@ -1,0 +1,30 @@
+{{ if and (and (and (index .Values.systemDefaultValues "clusterconnect-agent"  "enabled") (not .Values.systemDefaultValues.appliance.enabled)) (eq .Values.global.kubernetesDistro "openshift")) (not .Values.global.isLeastPrivilegesMode) }}
+kind: SecurityContextConstraints
+apiVersion: security.openshift.io/v1
+metadata:
+  name: kube-aad-proxy-scc
+allowPrivilegedContainer: true
+allowHostNetwork: false
+allowHostDirVolumePlugin: true
+priority:
+allowedCapabilities: []
+allowHostPorts: false
+allowHostPID: false
+allowHostIPC: false
+readOnlyRootFilesystem: true
+requiredDropCapabilities: []
+defaultAddCapabilities: []
+runAsUser:
+  type: RunAsAny
+seLinuxContext:
+  type: MustRunAs
+fsGroup:
+  type: MustRunAs
+supplementalGroups:
+  type: RunAsAny
+volumes:
+  - configMap
+  - secret
+users:
+  - system:serviceaccount:azure-arc:azure-arc-kube-aad-proxy-sa
+{{end}}

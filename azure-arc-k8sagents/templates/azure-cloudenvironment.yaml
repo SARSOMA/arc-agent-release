@@ -1,0 +1,12 @@
+{{ if and (index .Values.systemDefaultValues "clusterconnect-agent"  "enabled") (not .Values.systemDefaultValues.appliance.enabled)}}
+{{- if eq .Values.global.azureEnvironment "AZUREDOGFOOD" }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: azure-cloudenvironment-config
+  namespace: azure-arc
+data:
+  environment.json: |-
+{{ .Files.Get "dogfood/DogFoodEnvironment.json" | indent 4 }}
+{{ end }}
+{{ end }}

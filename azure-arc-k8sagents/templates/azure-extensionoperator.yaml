@@ -1,0 +1,241 @@
+{{ if .Values.systemDefaultValues.extensionoperator.enabled}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: extension-manager
+  namespace: azure-arc
+  labels:
+    control-plane: extension-manager
+    app.kubernetes.io/name:  azure-arc-k8s
+    app.kubernetes.io/component: extension-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: extension-manager
+  template:
+    metadata:
+      labels:
+        control-plane: extension-manager
+        app.kubernetes.io/name:  azure-arc-k8s
+        app.kubernetes.io/component: extension-manager
+      annotations:
+        checksum/proxysecret: {{ include (print $.Template.BasePath "/azure-proxy-secret.yaml") . | sha256sum }}
+        checksum/azureconfig: {{ include (print $.Template.BasePath "/azure-config.yaml") . | sha256sum }}
+        checksum/secrets: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
+        checksum/fluent-bit-config: {{ include (print $.Template.BasePath "/azure-fluentbit-config.yaml") . | sha256sum }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+    spec:
+      serviceAccountName:
+        {{- include "platformserviceaccount.name" . | indent 8 }}
+{{- if .Values.systemDefaultValues.azureArcAgents.affinity }}
+      affinity:
+{{ toYaml .Values.systemDefaultValues.azureArcAgents.affinity | indent 8 }}
+{{- end }}
+{{- if .Values.systemDefaultValues.azureArcAgents.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.systemDefaultValues.azureArcAgents.nodeSelector | indent 8 }}
+{{- end }}
+{{- if .Values.systemDefaultValues.azureArcAgents.tolerations }}
+      tolerations:
+{{ toYaml .Values.systemDefaultValues.azureArcAgents.tolerations | indent 8 }}
+{{- end }}
+      hostIPC: false
+      hostPID: false
+      hostNetwork: false
+      containers:
+        - name: manager
+          {{if .Values.systemDefaultValues.IsDebug}}
+          args:
+            - "--listen=:40000"
+            - "--headless=true"
+            - "--api-version=2"
+            - "exec"
+            - "/data/extensionmanager"
+            - "--"
+            - "--metrics-addr=127.0.0.1:8080"
+            - "--enable-leader-election"
+          command:
+            - /dlv
+          {{end}}
+          image: "{{ .Values.systemDefaultValues.image.repository }}/{{ .Values.systemDefaultValues.image.releaseName }}/{{ index .Values.systemDefaultValues.extensionoperator.image}}:{{ index .Values.systemDefaultValues.extensionoperator.tag}}"
+          imagePullPolicy: {{ .Values.systemDefaultValues.image.imagePullPolicy }}
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          envFrom:
+            - configMapRef:
+                name: azure-clusterconfig
+          {{ if .Values.global.isProxyEnabled }}
+            - secretRef:
+                name: proxy-config
+          {{ end }}
+          resources:
+            limits:
+              cpu: 200m
+              memory: 300Mi
+            requests:
+              cpu: 100m
+              memory: 150Mi
+          securityContext:
+            readOnlyRootFilesystem: false
+            {{ if eq .Values.global.kubernetesDistro "openshift" }}
+            privileged: true
+            {{end}}
+                {{ if .Values.systemDefaultValues.IsDebug}}
+          ports:
+            - containerPort: 40000
+              name: debug
+              protocol: TCP
+          securityContext:
+            capabilities:
+              add:
+                - SYS_PTRACE
+              {{end}}
+{{- if and (or .Values.global.isCustomCert .Values.global.isProxyEnabled) (.Values.global.proxyCert) }}
+          volumeMounts:
+            - name: ssl-certs
+              mountPath: /etc/ssl/certs/
+              readOnly: false
+            - mountPath: /usr/local/share/ca-certificates/proxy-cert.crt
+              subPath: proxy-cert.crt
+              name: proxy-certstore
+{{- end }}
+{{- if or .Values.systemDefaultValues.healthstatecontroller.enabled (eq (lower .Values.global.cluster_type) "connectedclusters") (eq .Values.global.azureEnvironment "AZUREDOGFOOD") (eq (lower .Values.global.location) "eastus2euap") }}
+        - name: healthstatecontroller
+          image: "{{ .Values.systemDefaultValues.image.repository }}/{{ .Values.systemDefaultValues.image.releaseName }}/{{ index .Values.systemDefaultValues.healthstatecontroller.image}}:{{ index .Values.systemDefaultValues.healthstatecontroller.tag}}"
+          imagePullPolicy: {{ .Values.systemDefaultValues.image.imagePullPolicy }}
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          envFrom:
+            - configMapRef:
+                name: azure-clusterconfig
+          {{ if .Values.global.isProxyEnabled }}
+            - secretRef:
+                name: proxy-config
+          {{ end }}
+          resources:
+            limits:
+              cpu: 200m
+              memory: 300Mi
+            requests:
+              cpu: 100m
+              memory: 150Mi
+          securityContext:
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+          ports:
+            - containerPort: 8443
+              name: debug
+              protocol: TCP
+            - name: metrics
+              containerPort: 8081
+              protocol: TCP
+            - name: health
+              containerPort: 8082
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+          securityContext:
+            capabilities:
+              add:
+                - SYS_PTRACE
+         {{- if and (or .Values.global.isCustomCert .Values.global.isProxyEnabled) (.Values.global.proxyCert) }}
+          volumeMounts:
+            - name: ssl-certs
+              mountPath: /etc/ssl/certs/
+              readOnly: false
+            - mountPath: /usr/local/share/ca-certificates/proxy-cert.crt
+              subPath: proxy-cert.crt
+              name: proxy-certstore
+         {{- end }}
+{{- end }}
+        - name: fluent-bit
+          image: "{{ .Values.systemDefaultValues.image.repository }}/{{ .Values.systemDefaultValues.image.releaseName }}/{{ index .Values.systemDefaultValues "fluent-bit" "image" }}:{{ index .Values.systemDefaultValues "fluent-bit" "tag" }}"
+          imagePullPolicy: {{ .Values.systemDefaultValues.image.imagePullPolicy }}
+          securityContext:
+            readOnlyRootFilesystem: true
+            {{ if eq .Values.global.kubernetesDistro "openshift" }}
+            privileged: true
+            {{end}}
+            capabilities:
+              drop:
+                - ALL
+{{ $fluentBit := index .Values.systemDefaultValues "fluent-bit" "resources" }}
+{{- if  $fluentBit  }}
+          resources:
+{{ $fluentBit | toYaml | indent 12 }}
+{{- end }}
+          envFrom:
+            - configMapRef:
+                name: azure-clusterconfig
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: AGENT_TYPE
+              value: "ConfigAgent"
+            - name: AGENT_NAME
+              value: "ExtensionController"
+          volumeMounts:
+            - name: varlog
+              mountPath: /var/log
+              readOnly: true
+            - name: varlibdockercontainers
+              mountPath: {{ index .Values.systemDefaultValues "fluent-bit" "containerLogPath" }}
+              readOnly: true
+            - name: fluentbit-clusterconfig
+              mountPath: /fluent-bit/etc/
+      volumes:
+        - name: varlog
+          hostPath:
+            path: /var/log
+        - name: varlibdockercontainers
+          hostPath:
+            path: {{ index .Values.systemDefaultValues "fluent-bit" "containerLogPath" }}
+        - name: fluentbit-clusterconfig
+          configMap:
+            name: azure-fluentbit-config
+{{- if and (or .Values.global.isCustomCert .Values.global.isProxyEnabled) (.Values.global.proxyCert) }}
+        - name: proxy-certstore
+          secret:
+            secretName: proxy-cert
+        - name: ssl-certs
+          emptyDir: {}
+{{- end }}
+      terminationGracePeriodSeconds: 10
+---
+{{- if or .Values.systemDefaultValues.healthstatecontroller.enabled (eq (lower .Values.global.cluster_type) "connectedclusters") (eq .Values.global.azureEnvironment "AZUREDOGFOOD") (eq (lower .Values.global.location) "eastus2euap") }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: extension-manager-svc
+  namespace: azure-arc
+  labels:
+    app.kubernetes.io/name: azure-arc-k8s
+    app.kubernetes.io/component: extension-manager
+spec:
+  clusterIP: None
+  ports:
+    - port: 8081
+      targetPort: 8081
+      protocol: TCP
+      name: customlocationhealthmetrics
+  selector:
+    app.kubernetes.io/name: azure-arc-k8s
+    app.kubernetes.io/component: extension-manager
+{{- end }}
+{{end}}

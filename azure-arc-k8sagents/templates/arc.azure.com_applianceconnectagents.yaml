@@ -1,0 +1,80 @@
+{{ if .Values.systemDefaultValues.appliance.enabled}}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.4.0
+    meta.helm.sh/release-name: {{ .Release.Name }}
+    meta.helm.sh/release-namespace: {{ .Release.Namespace }}
+  creationTimestamp: null
+  name: applianceconnectagents.arc.azure.com
+spec:
+  group: arc.azure.com
+  names:
+    kind: ApplianceConnectAgent
+    listKind: ApplianceConnectAgentList
+    plural: applianceconnectagents
+    singular: applianceconnectagent
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: ApplianceConnectAgent is the Schema for the ApplianceConnectAgent
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: 'NOTE: json tags are required.  Any new fields you add must
+              have json tags for the fields to be serialized. ApplianceConnectAgentSpec
+              defines the desired state of ApplianceConnectAgent'
+            type: object
+          status:
+            description: ApplianceConnectAgentStatus defines the observed state of
+              ApplianceConnectAgent
+            properties:
+              applianceStatus:
+                description: ApplianceStatus is the status on the Connect Agent
+                type: string
+              customerUserSSHKeyResourceVersion:
+                description: CustomerUserSSHKeyResourceVersion is the resourceVersion
+                  of the CustomerUserSSHKey persisted by KVA
+                type: string
+              lastUpgradeTime:
+                description: LastUpgradeTime is the last time an upgrade finished
+                  (succeeded or failed). This is used to make sure we don't resync
+                  more than once after an upgrade.
+                format: date-time
+                type: string
+              partnerKubeconfigResourceVersion:
+                description: PartnerKubeconfigResourceVersion is the resourceVersion
+                  of the partner kubeconfig created by the agent.
+                type: string
+              sshKeySecretResourceVersion:
+                description: SSHKeySecretResourceVersion is the resourceVersion of
+                  the ssh key secret produced by the RP.
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+{{end}}

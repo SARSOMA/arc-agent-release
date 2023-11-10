@@ -1,0 +1,207 @@
+{{- if .Values.systemDefaultValues.appliance.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: azure-fluentbit-config-appliance-connect-agent
+  namespace: azure-arc
+data:
+  fluent-bit.conf: |
+    [SERVICE]
+        Flush         30
+        Log_Level     info
+        Daemon        off
+        Parsers_File  parsers.conf
+        HTTP_Server   Off
+
+    @INCLUDE input-kubernetes.conf
+    @INCLUDE cert-manager.conf
+    @INCLUDE output.conf
+{{- if and (or .Values.global.isCustomCert .Values.global.isProxyEnabled) (.Values.global.proxyCert) }}
+    @INCLUDE proxy-cert.conf
+{{- end }}
+{{- if or (eq .Values.global.azureEnvironment "AZUREDOGFOOD") (eq (lower .Values.global.location) "eastus2euap") }}
+    @INCLUDE canary-df-input.conf
+{{- else }}
+    @INCLUDE prod-apiserver-input.conf
+{{- end }}
+{{- if or ( or (eq .Values.global.azureEnvironment "AZUREDOGFOOD") (eq (lower .Values.global.location) "eastus2euap")) (eq .Values.systemDefaultValues.appliance.provider "azurestackhci") }}
+    @INCLUDE cloud-operator-input.conf
+{{- end }}
+
+  input-kubernetes.conf: |
+    # Push this pod's logs
+    [INPUT]
+        Name              tail
+        Tag               azure-arc.${AGENT_NAME}.*
+        Path              /var/log/con*/${POD_NAME}*azure-arc*.log
+        Exclude_Path      /var/log/con*/${POD_NAME}*azure-arc_fluent-bit*.log
+        Multiline         On
+        Parser_Firstline  first_line
+        Mem_Buf_Limit     100KB
+        Buffer_Chunk_Size 1KB
+
+    [INPUT]
+        Name              tail
+        Tag               azure-arc.fluent-bit.*
+        Path              /var/log/con*/${POD_NAME}*azure-arc_fluent-bit*.log
+        Multiline         On
+        Parser_Firstline  first_line
+        Mem_Buf_Limit     100KB
+        Buffer_Chunk_Size 1KB
+
+    [FILTER]
+        Name lua
+        Match *
+        script /fluent-bit/bin/helpers.lua
+        call process
+
+    [FILTER]
+        Name record_modifier
+        Match azure-arc.${AGENT_NAME}.*
+        Record AgentNameOverride ${AGENT_NAME}
+
+    [FILTER]
+        Name record_modifier
+        Match azure-arc.fluent-bit.*
+        Record AgentNameOverride ${AGENT_NAME}-Fluentbit
+
+  cert-manager.conf: |
+    # Push cert-manager logs in all regions
+    [INPUT]
+        Name              tail
+        Tag               cert-manager
+        Path              /var/log/containers/cert-manager-*_cert-manager_cert-manager-*.log
+        Exclude_Path      /var/log/containers/cert-manager-cainjector-*.log,/var/log/containers/cert-manager-webhook-*.log
+        Multiline         On
+        Parser_Firstline  first_line
+        Mem_Buf_Limit     1MB
+
+    [FILTER]
+        Name record_modifier
+        Match cert-manager
+        Record AgentNameOverride cert-manager
+
+  canary-df-input.conf: |
+    # Enable full API server, Appliance Management Shell, and KVAIO logs in DF and eastus2euap
+    [INPUT]
+        Name              tail
+        Tag               appliance-management-shell
+        Path              /var/log/ams.log
+        Parser            json_parser
+        Mem_Buf_Limit     100KB
+        Buffer_Chunk_Size 1KB
+
+    [INPUT]
+        Name              tail
+        Tag               api-server
+        Path              /var/log/containers/kube-apiserver-*_kube-system_kube-apiserver-*.log
+        Multiline         On
+        Parser_Firstline  first_line
+        Mem_Buf_Limit     100KB
+        Buffer_Chunk_Size 1KB
+
+    [INPUT]
+        Name              tail
+        Tag               kvaio-controller-manager
+        Path              /var/log/containers/kvaio-controller-manager-*_cloudop-system_manager-*.log
+        Multiline         On
+        Parser_Firstline  first_line
+        Mem_Buf_Limit     100KB
+        Buffer_Chunk_Size 1KB
+
+    [FILTER]
+        Name record_modifier
+        Match appliance-management-shell
+        Record AgentNameOverride appliance-management-shell
+
+    [FILTER]
+        Name record_modifier
+        Match api-server
+        Record AgentNameOverride api-server
+
+    [FILTER]
+        Name record_modifier
+        Match kvaio-controller-manager
+        Record AgentNameOverride kvaio-controller-manager
+
+    # We get AMS logs directly, not through a container log file, so the schema is different.
+    # The http_mdm plugin expects the log line to be in the `log` field.
+    [FILTER]
+        Name modify
+        Match appliance-management-shell
+        Rename msg log
+
+  prod-apiserver-input.conf: |
+    # Enable limited API server logs (only lines related to Unauthorized errors) outside DF and eastus2euap
+    [INPUT]
+        Name              tail
+        Tag               api-server
+        Path              /var/log/containers/kube-apiserver-*_kube-system_kube-apiserver-*.log
+        Multiline         On
+        Parser_Firstline  first_line
+        Mem_Buf_Limit     100KB
+        Buffer_Chunk_Size 1KB
+
+    [FILTER]
+        Name grep
+        Match api-server
+        regex log .+Failed to make webhook authenticator request.+|.+Unable to authenticate the request.+
+
+    [FILTER]
+        Name record_modifier
+        Match api-server
+        Record AgentNameOverride api-server
+
+  cloud-operator-input.conf: |
+    # Enable full cloud operator logs in DF and eastus2euap for all Appliance provider types.
+    # Also enable in all clouds and regions for HCI clusters.
+    [INPUT]
+        Name              tail
+        Tag               cloudop-controller-manager
+        Path              /var/log/containers/cloudop-controller-manager-*_cloudop-system_manager-*.log
+        Multiline         On
+        Parser_Firstline  first_line
+        Mem_Buf_Limit     100KB
+        Buffer_Chunk_Size 1KB
+
+    [FILTER]
+        Name record_modifier
+        Match cloudop-controller-manager
+        Record AgentNameOverride cloudop-controller-manager
+
+  proxy-cert.conf: |
+    # Use fluent-bit and Config DP for KVAMO when using proxy + cert
+    [INPUT]
+        Name              tail
+        Tag               kva-management-operator
+        Path              /var/log/containers/kva-management-operator-*_kva-management-operator_*.log
+        Multiline         On
+        Parser_Firstline  first_line
+        Mem_Buf_Limit     100KB
+        Buffer_Chunk_Size 1KB
+
+    [FILTER]
+        Name record_modifier
+        Match kva-management-operator
+        Record AgentNameOverride kva-management-operator
+
+  parsers.conf: |
+    [PARSER]
+        Name        first_line
+        Format      regex
+        Regex       ^{"log":"(?!\\u0009)(?<log>\bpanic([^,"]|\n)*)"
+
+    [PARSER]
+        Name        json_parser
+        Format      json
+        Time_Key    time
+        Time_Format %Y-%m-%dT%H:%M:%S %z
+
+  output.conf: |
+    [OUTPUT]
+        Name        forward
+        Match       *
+        Host        logcollector
+        Port        24224
+
+{{- end }}

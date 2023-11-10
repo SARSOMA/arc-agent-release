@@ -1,0 +1,43 @@
+{{ if and (.Values.systemDefaultValues.customLocations.enabled) (ne .Values.systemDefaultValues.customLocations.oid "") }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: AzureArc-Microsoft.ExtendedLocation-RP-Role
+rules:
+{{- if .Values.global.isLeastPrivilegesMode }}
+- apiGroups: [""]
+  resources: ["events", "serviceaccounts"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources:  ["namespaces"]
+  verbs: ["create", "get", "list", "watch", "update"]
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources: ["roles", "rolebindings"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["clusterconfig.azure.com"]
+  resources: ["healthstates"]
+  verbs: ["*"]
+{{ else }}
+- apiGroups: ["*"]
+  resources: ["namespaces", "roles", "rolebindings", "serviceaccounts"]
+  verbs: ["*"]
+- apiGroups: ["clusterconfig.azure.com"]
+  resources: ["healthstates"]
+  verbs: ["*"]
+{{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: AzureArc-Microsoft.ExtendedLocation-RP-RoleBinding
+  annotations:
+    connectedclusters.arc.azure.com/skip-authz-check : "true"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: AzureArc-Microsoft.ExtendedLocation-RP-Role
+subjects:
+- kind: User
+  name: {{ .Values.systemDefaultValues.customLocations.oid }}
+  apiGroup: rbac.authorization.k8s.io
+{{ end }}

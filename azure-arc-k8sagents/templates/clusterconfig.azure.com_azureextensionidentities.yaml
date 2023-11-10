@@ -1,0 +1,72 @@
+{{ if .Values.systemDefaultValues.extensionoperator.enabled}}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.4
+    meta.helm.sh/release-name: {{ .Release.Name }}
+    meta.helm.sh/release-namespace: {{ .Release.Namespace }}
+  creationTimestamp: null
+  name: azureextensionidentities.clusterconfig.azure.com
+spec:
+  group: clusterconfig.azure.com
+  preserveUnknownFields: false
+  names:
+    kind: AzureExtensionIdentity
+    listKind: AzureExtensionIdentityList
+    plural: azureextensionidentities
+    singular: azureextensionidentity
+  scope: Namespaced
+  versions:
+  - name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: AzureExtensionIdentity is the Schema for the azureextensionidentities
+          API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: AzureExtensionIdentitySpec defines the desired state of AzureExtensionIdentity
+            properties:
+              serviceAccounts:
+                items:
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                  type: object
+                type: array
+              tokenNamespace:
+                type: string
+            type: object
+          status:
+            description: AzureExtensionIdentityStatus defines the observed state of
+              AzureExtensionIdentity
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+{{ end }}

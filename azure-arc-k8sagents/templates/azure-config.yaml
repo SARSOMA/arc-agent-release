@@ -1,0 +1,85 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: azure-clusterconfig
+  namespace: azure-arc
+data:
+  AZURE_RESOURCE_NAME: {{ .Values.global.resourceName }}
+  AZURE_SUBSCRIPTION_ID: {{ .Values.global.subscriptionId }}
+  AZURE_TENANT_ID: {{ .Values.global.tenantId }}
+  {{- if eq .Values.systemDefaultValues.appliance.enabled false }}
+  {{- if .Values.systemDefaultValues.spnOnboarding }}
+  {{- if eq .Values.systemDefaultValues.isClientSecretAToken false }}
+  AZURE_CLIENT_ID: {{ .Values.global.clientId }}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  IS_CLIENT_SECRET_A_TOKEN: "{{ .Values.systemDefaultValues.isClientSecretAToken }}"
+  MAX_STORES: "{{ .Values.systemDefaultValues.resourceSyncAgent.numberOfConfigMaps }}"
+  MAX_ENTRIES_PER_STORE: "{{ .Values.systemDefaultValues.resourceSyncAgent.numberOfEntriesPerConfigMap }}"
+  AZURE_RESOURCE_GROUP: {{ .Values.global.resourceGroupName }}
+  AZURE_REGION: {{ .Values.global.location }}
+  ONBOARDING_SECRET_NAME: "azure-arc-connect-privatekey"
+  ONBOARDING_SECRET_NAMESPACE: "azure-arc"
+  TAGS: {{ .Values.global.tags }}
+  MANAGED_IDENTITY_AUTH: "{{ .Values.systemDefaultValues.optIn.ManagedIdentityAuth }}"
+  RP_NAMESPACE: {{ .Values.global.rpNamespace }}
+  CLUSTER_TYPE: {{ .Values.global.cluster_type }}{{ if index .Values.systemDefaultValues "azureArcAgents" "config_dp_endpoint_override" }}
+  DP_ENDPOINT_OVERRIDE: {{ index .Values.systemDefaultValues "azureArcAgents" "config_dp_endpoint_override" }}{{ end }}
+  FLUX_CLIENT_DEFAULT_LOCATION: {{ index .Values.systemDefaultValues "config-agent" "flux_client_default_location" }}
+  AZURE_ARC_AGENT_VERSION: {{ .Values.systemDefaultValues.azureArcAgents.version }}
+  HELM_AUTO_UPDATE_CHECK_FREQUENCY_IN_MINUTES: "{{ .Values.systemDefaultValues.azureArcAgents.updateCheckFrequencyInMinutes }}"
+  AZURE_ARC_AUTOUPDATE: "{{ .Values.systemDefaultValues.azureArcAgents.autoUpdate }}"
+  ARC_AGENT_RELEASE_TRAIN: {{.Values.systemDefaultValues.azureArcAgents.releaseTrain}}
+  RESOURCE_SYNC_LIST_CHUNK_SIZE: "{{ .Values.systemDefaultValues.resourceSyncAgent.listChunkSize }}"
+  IS_LEAST_PRIVILEGES_MODE: "{{ .Values.global.isLeastPrivilegesMode }}" 
+  PLATFORM_SERVICE_ACCOUNT_NAME: "{{ .Values.global.platformServiceAccountName }}"
+  EXTENSION_CATALOG_DOWNLOAD_PATH: "{{.Values.global.extensionCatalogDownloadPath}}"
+  EXTENSION_CATALOG_DOWNLOAD_VERSION: "{{.Values.global.extensionCatalogDownloadVersion}}"
+  EXTENSION_CATALOG_CACHE_TTL_IN_MINUTES: "{{.Values.global.extensionCatalogCacheTTLInMins}}"
+  PACKAGE_SOURCE_VALIDATION_ENABLED: "{{.Values.global.packageSourceValidationEnabled}}"
+  IS_MARKETPLACE_STAGING_ENVIRONMENT: "{{.Values.global.isMarketPlaceStagingEnvironment}}"
+  IS_PACKAGE_SOURCE_VALIDATION_AUDIT_ONLY: "{{.Values.global.isPackageSourceValidationAuditOnly}}"
+
+  {{- if eq .Values.systemDefaultValues.appliance.enabled false }}
+  ARC_AGENT_HELM_CHART_NAME: "{{ .Chart.Name }}"
+  {{ else }}
+  # config-agent will use this send the request to the AgentUpdateAPI to match the entry inside the config DB with the appliance release train.
+  ARC_AGENT_HELM_CHART_NAME: "azure-arc-appliance-k8sagents"
+  {{ end }}
+  AZURE_ARC_RELEASE_NAME: "{{ .Release.Name }}"
+  AZURE_ARC_HELM_NAMESPACE: "{{ .Release.Namespace }}"
+  DEBUG_LOGGING: "{{ .Values.systemDefaultValues.debugLogging }}"
+  NO_AUTH_HEADER_DATA_PLANE: "{{ .Values.systemDefaultValues.noAuthHeaderDataPlane }}"
+  EXTENSION_OPERATOR_ENABLED: "{{ .Values.systemDefaultValues.extensionoperator.enabled }}"
+  GITOPS_ENABLED: "{{ .Values.systemDefaultValues.gitops.enabled }}"
+  FLUX_UPSTREAM_SERVICE_ENABLED: "{{ .Values.systemDefaultValues.fluxlogsagent.enabled}}"
+  {{ if and (.Values.systemDefaultValues.extensionEventsCollector.enabledService) (not .Values.systemDefaultValues.appliance.enabled)}}
+  ENABLE_EXTENSION_EVENT_COLLECTION_SERVICE: "true"
+  ENABLE_EXTENSION_EVENT_COLLECTION_DATAPLANE: "{{ .Values.systemDefaultValues.extensionEventsCollector.enabledDataplane}}"
+  {{ else }}
+  ENABLE_EXTENSION_EVENT_COLLECTION_SERVICE: "false"
+  ENABLE_EXTENSION_EVENT_COLLECTION_DATAPLANE: "false"
+  {{ end }}
+  EVENTS_URL: "http://extension-events-collector:8082"
+  EVENTS_URL_CROSS_NAMESPACE: "http://extension-events-collector.azure-arc.svc.cluster.local:8082"
+  AZURE_ENVIRONMENT: "{{ .Values.global.azureEnvironment }}"
+  KUBERNETES_DISTRO: "{{ .Values.global.kubernetesDistro }}"
+  MSI_ADAPTER_ARTIFACT_PATH: "{{ .Values.systemDefaultValues.MsiAdapterArtifactPath }}"
+  KUBERNETES_INFRA: "{{ .Values.global.kubernetesInfra }}"
+  CLUSTER_CONNECT_AGENT_ENABLED: "{{ index .Values.systemDefaultValues "clusterconnect-agent" "enabled" }}"
+  RESOURCE_SYNC_ENABLE_CHUNKED_SYNC: {{ .Values.systemDefaultValues.resourceSyncAgent.enableChunkedSync | quote }}
+  CUSTOM_IDENTITY_PROVIDER_ENABLED: "{{ .Values.systemDefaultValues.customIdentityProviderEnabled }}"
+  AZURE_RESOURCE_MANAGER_ENDPOINT: "{{ .Values.systemDefaultValues.azureResourceManagerEndpoint }}"
+  ACTIVE_DIRECTORY_ENDPOINT: "{{ .Values.systemDefaultValues.activeDirectoryEndpoint }}"
+  GUARD_PKI_HOSTPATH: "{{ .Values.systemDefaultValues.guard.pkiHostPath }}"
+  ENABLE_OIDC_ISSUER: "{{ .Values.global.enableOidcIssuer }}"
+
+  HTTP_USE_CUSTOM_DIALER: {{ .Values.systemDefaultValues.httpCustomDialer.enabled | quote }}
+  HTTP_CUSTOM_DIALER_CHECK_HOST: {{ .Values.systemDefaultValues.httpCustomDialer.checkHost }}
+  HTTP_CUSTOM_DIALER_TIMEOUT: {{ .Values.systemDefaultValues.httpCustomDialer.timeout | quote }}
+  HTTP_CUSTOM_DIALER_CHECK_INTERVAL: {{ .Values.systemDefaultValues.httpCustomDialer.checkInterval | quote }}
+  HTTP_CUSTOM_DIALER_DNS_ADDRESS: {{ .Values.systemDefaultValues.httpCustomDialer.dnsAddress }}
+
+  GOFIPS: {{ .Values.systemDefaultValues.goFips | quote }}
+  

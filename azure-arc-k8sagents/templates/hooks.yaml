@@ -1,0 +1,81 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ .Release.Name }}"
+  namespace: azure-arc
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+    helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+  annotations:
+    # This is what defines this resource as a hook. Without this line, the
+    # job is considered part of the release.
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  template:
+    metadata:
+      name: "{{ .Release.Name }}"
+      namespace: azure-arc
+      labels:
+        app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+        app.kubernetes.io/instance: {{ .Release.Name | quote }}
+        helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    spec:
+      serviceAccountName:
+        {{- include "platformserviceaccount.name" . | indent 8 }}
+      restartPolicy: Never
+{{- if or .Values.systemDefaultValues.azureArcAgents.tolerations (eq .Values.global.cluster_type "provisionedclusters") }}
+      tolerations:
+{{- if eq .Values.global.cluster_type "provisionedclusters" }}
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+{{- end }}
+{{- if .Values.systemDefaultValues.azureArcAgents.tolerations }}
+{{ toYaml .Values.systemDefaultValues.azureArcAgents.tolerations | indent 8 }}
+{{- end }}
+{{- end}}
+{{- if .Values.systemDefaultValues.azureArcAgents.affinity }}
+      affinity:
+{{ toYaml .Values.systemDefaultValues.azureArcAgents.affinity | indent 8 }}
+{{- end }}
+{{- if .Values.systemDefaultValues.azureArcAgents.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.systemDefaultValues.azureArcAgents.nodeSelector | indent 8 }}
+{{- end }}
+      containers:
+        - name: pre-delete-job
+{{- if .Values.systemDefaultValues.appliance.enabled }}          
+          image: mcr.microsoft.com/oss/kubernetes/kubectl:v1.23.9
+{{- else }}
+          image: mcr.microsoft.com/oss/kubernetes/kubectl:v1.25.3
+{{- end }}
+{{- if .Values.systemDefaultValues.appliance.enabled }}
+          command: ["/bin/bash"]
+          args:
+            - -c
+            - |
+              kubectl delete crd applianceconnectagents.arc.azure.com extensionconfigs.clusterconfig.azure.com --ignore-not-found
+              kubectl scale deployment config-agent -n azure-arc --replicas=0
+              kubectl scale deployment extension-manager -n azure-arc --replicas=0
+              # Ensure that if any extensionconfigs are stuck in terminating state, they are deleted
+              kubectl get extensionconfigs.clusterconfig.azure.com -A -o=json | kubectl patch --type=merge -f - -p '{"metadata":{"finalizers":[]}}' -o json | kubectl apply -f -
+              kubectl delete crd extensionconfigs.clusterconfig.azure.com --ignore-not-found
+{{- else if and .Values.systemDefaultValues.resourceSyncAgent.enabled .Values.systemDefaultValues.extensionoperator.enabled }}
+          command: ["/bin/bash"]
+          args:
+            - -c
+            - |
+              kubectl delete crd gitconfigs.clusterconfig.azure.com extensionconfigs.clusterconfig.azure.com connectedclusters.arc.azure.com --ignore-not-found              
+              kubectl scale deployment config-agent -n azure-arc --replicas=0
+              kubectl scale deployment extension-manager -n azure-arc --replicas=0
+              # Ensure that if any extensionconfigs are stuck in terminating state, they are deleted
+              kubectl get extensionconfigs.clusterconfig.azure.com -A -o=json | kubectl patch --type=merge -f - -p '{"metadata":{"finalizers":[]}}' -o json | kubectl apply -f -
+              kubectl delete crd extensionconfigs.clusterconfig.azure.com --ignore-not-found
+{{- else if .Values.systemDefaultValues.resourceSyncAgent.enabled}}
+          command: ["kubectl", "delete", "crd", "gitconfigs.clusterconfig.azure.com", "connectedclusters.arc.azure.com", "--ignore-not-found"]
+{{- else }}
+          command: ["kubectl", "delete", "crd", "gitconfigs.clusterconfig.azure.com", "--ignore-not-found"]
+{{- end }}

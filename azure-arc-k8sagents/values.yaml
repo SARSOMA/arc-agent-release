@@ -1,0 +1,289 @@
+global:
+  aadAdminGroupObjectIds: []
+  azureEnvironment: AZUREPUBLICCLOUD
+  clientId: ""
+  clientSecret: ""
+  cluster_type: ConnectedClusters
+  clusterAdminUserObjectId: ""
+  containerGroup: 12434
+  containerUser: 13243
+  enableOidcIssuer: false
+  extensionCatalogCacheTTLInMins: "14400"
+  extensionCatalogDownloadPath: https://mcr.microsoft.com/azurearck8s/extension-catalog
+  extensionCatalogDownloadVersion: public
+  httpProxy: ""
+  httpsProxy: ""
+  isCustomCert: false
+  isLeastPrivilegesMode: false
+  isMarketPlaceStagingEnvironment: false
+  isPackageSourceValidationAuditOnly: true
+  isProxyEnabled: false
+  kubeAadEndpoint: ""
+  kubernetesDistro: generic
+  kubernetesInfra: generic
+  location: ""
+  noProxy: ""
+  onboardingPrivateKey: ""
+  packageSourceValidationEnabled: true
+  platformServiceAccountName: ""
+  proxyCert: ""
+  resourceGroupName: ""
+  resourceName: ""
+  rpNamespace: Microsoft.Kubernetes
+  subscriptionId: ""
+  tags: {}
+  tenantId: ""
+systemDefaultValues:
+  MsiAdapterArtifactPath: mcr.microsoft.com/azurearck8s/msi-adapter:1.0.5
+  activeDirectoryEndpoint: ""
+  appliance:
+    aadauth:
+      clientId: 9af7d6a8-7cc0-466f-a086-c63b076fa398
+      enabled: false
+      guard_initcontainer_image: mcr.microsoft.com/azurearck8s/guardinit-container
+      guard_initcontainer_tag: 0.3.2-appliance
+    appliance_creation_parameters_for_telemetry: ""
+    appliance_dp_endpoint_override: ""
+    connect-agent:
+      image: appliance-connect-agent
+      tag: 1.13.4
+    connect-agent-fluent-bit:
+      resources:
+        limits:
+          cpu: 40m
+          memory: 200Mi
+        requests:
+          cpu: 10m
+          memory: 50Mi
+    enabled: false
+    provider: ""
+    repository: mcr.microsoft.com
+    resources:
+      limits:
+        cpu: 100m
+        memory: 128Mi
+      requests:
+        cpu: 50m
+        memory: 64Mi
+  azureArcAgents:
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: kubernetes.io/arch
+              operator: In
+              values:
+              - amd64
+              - arm64
+    autoUpdate: "true"
+    config_dp_endpoint_override: ""
+    nodeSelector:
+      kubernetes.io/os: linux
+    releaseTrain: stable
+    resources:
+      limits:
+        cpu: 50m
+        memory: 100Mi
+      requests:
+        cpu: 5m
+        memory: 20Mi
+    tolerations: []
+    updateCheckFrequencyInMinutes: "60"
+    version: 1.13.4
+  azureResourceManagerEndpoint: ""
+  clusterMetadataOperator:
+    image: cluster-metadata-operator
+    resyncAfter: "300"
+    tag: 1.13.4
+  clusterconnect-agent:
+    connect_dp_endpoint_override: ""
+    enabled: false
+    image: clusterconnect-agent
+    notification_dp_endpoint_override: ""
+    relay_endpoint_suffix_override: ""
+    tag: 1.13.4
+    version: v2
+  clusterconnectservice-operator:
+    image: clusterconnectservice-operator
+    resources:
+      limits:
+        cpu: 100m
+        memory: 400Mi
+      requests:
+        cpu: 10m
+        memory: 20Mi
+    tag: 1.13.4
+  clusteridentityoperator:
+    his_endpoint_override: ""
+    image: cluster-identity
+    tag: 1.13.4
+  config-agent:
+    flux_client_default_location: mcr.microsoft.com/azurearck8s/arc-preview/fluxctl:0.2.0
+    image: config-agent
+    logging_via_config: false
+    tag: 1.13.4
+  config-operator:
+    image: configoperator
+    resources:
+      limits:
+        cpu: 200m
+        memory: 350Mi
+      requests:
+        cpu: 100m
+        memory: 150Mi
+    tag: 1.13.4
+  connect-agent:
+    image: connect-agent
+    resources:
+      limits:
+        cpu: 30m
+        memory: 50Mi
+      requests:
+        cpu: 10m
+        memory: 20Mi
+    tag: 1.13.4
+  customIdentityProviderEnabled: false
+  customLocations:
+    enabled: false
+    oid: ""
+  debugLogging: false
+  extensionEventsCollector:
+    enabledDataplane: false
+    enabledService: true
+    image: extension-events-collector
+    tag: 1.13.4
+  extensionoperator:
+    enabled: true
+    image: extensionoperator
+    tag: 1.13.4
+  fluent-bit:
+    containerLogPath: /var/lib/docker/containers
+    image: fluent-bit
+    resources:
+      limits:
+        cpu: 20m
+        memory: 100Mi
+      requests:
+        cpu: 5m
+        memory: 25Mi
+    tag: 1.13.4
+  fluent-bit-collector:
+    image: fluent-bit-collector
+    resources:
+      limits:
+        cpu: 20m
+        memory: 200Mi
+      requests:
+        cpu: 5m
+        memory: 100Mi
+    tag: 1.13.4
+  fluxlogsagent:
+    enabled: true
+    image: flux-logs-agent
+    tag: 1.13.4
+  gitops:
+    enabled: true
+  goFips: 0
+  guard:
+    authnMode: obo
+    authzMode: arc
+    caCertFileName: ca.crt
+    clientId: 6256c85f-0aad-4d50-b960-e6e9b21efe35
+    clientSecret: ""
+    clusterIP: ""
+    controller:
+      image: guardcontroller
+      resources:
+        limits:
+          cpu: 10m
+          memory: 20Mi
+        requests:
+          cpu: 5m
+          memory: 10Mi
+      tag: 1.13.4
+    enabled: false
+    image: guard
+    initGuard:
+      init-image: guardinit-container
+      init-tag: 1.13.4
+      resources:
+        limits:
+          cpu: 10m
+          memory: 20Mi
+        requests:
+          cpu: 5m
+          memory: 10Mi
+    pkiHostPath: ""
+    releaseName: oss/kubeguard
+    replicas: 1
+    repository: mcr.microsoft.com
+    resources:
+      limits:
+        cpu: 100m
+        memory: 350Mi
+      requests:
+        cpu: 10m
+        memory: 20Mi
+    serverCertFileName: tls.crt
+    serverKeyFileName: tls.key
+    skipAuthzCheck: null
+    tag: v0.15.1-linux-amd64
+  healthstatecontroller:
+    enabled: false
+    image: healthstatecontroller
+    tag: 1.13.4
+  httpCustomDialer:
+    checkHost: microsoft.com
+    checkInterval: 5m
+    dnsAddress: 1.1.1.1:53
+    enabled: false
+    timeout: 30s
+  image:
+    imagePullPolicy: IfNotPresent
+    releaseName: azurearck8s
+    repository: mcr.microsoft.com
+  isClientSecretAToken: false
+  isDebug: false
+  kubeAADProxy:
+    clientId: 6256c85f-0aad-4d50-b960-e6e9b21efe35
+    enforcePoP: true
+    image: kube-aad-proxy
+    replicas: 1
+    resources:
+      limits:
+        cpu: 100m
+        memory: 350Mi
+      requests:
+        cpu: 10m
+        memory: 20Mi
+    skipHostCheck: false
+    tag: 1.13.4
+    tenantId: ""
+    v: info
+  metrics-agent:
+    image: metrics-agent
+    tag: 1.13.4
+  noAuthHeaderDataPlane: false
+  optIn:
+    ManagedIdentityAuth: true
+  rbac:
+    enabled: true
+  resourceSyncAgent:
+    enableChunkedSync: true
+    enableNamespaceResources: false
+    enabled: true
+    goMemLimit: 295MiB
+    image: resource-sync
+    listChunkSize: "200"
+    numberOfConfigMaps: "30"
+    numberOfEntriesPerConfigMap: "680"
+    resources:
+      limits:
+        cpu: 100m
+        memory: 300Mi
+      requests:
+        cpu: 20m
+        memory: 60Mi
+    tag: 1.13.4
+  spnOnboarding: true

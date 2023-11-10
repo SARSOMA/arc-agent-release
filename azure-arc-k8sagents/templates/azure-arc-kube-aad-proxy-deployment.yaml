@@ -1,0 +1,222 @@
+{{ if and (index .Values.systemDefaultValues "clusterconnect-agent"  "enabled") (not .Values.systemDefaultValues.appliance.enabled)}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kube-aad-proxy
+  namespace: azure-arc
+  labels:
+    app.kubernetes.io/name:  azure-arc-k8s
+    app.kubernetes.io/component: kube-aad-proxy
+  annotations:
+    description: {{ .Chart.Description }}
+spec:
+  replicas: {{ .Values.systemDefaultValues.kubeAADProxy.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: azure-arc-k8s
+      app.kubernetes.io/component: kube-aad-proxy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: azure-arc-k8s
+        app.kubernetes.io/component: kube-aad-proxy
+      annotations:
+        checksum/proxysecret: {{ include (print $.Template.BasePath "/azure-proxy-secret.yaml") . | sha256sum }}
+        checksum/fluent-bit-config: {{ include (print $.Template.BasePath "/azure-fluentbit-config.yaml") . | sha256sum }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+    spec:
+      serviceAccountName:
+        {{- include "kapserviceaccount.name" . | indent 8 }}
+
+{{- if or .Values.systemDefaultValues.azureArcAgents.tolerations (eq .Values.global.cluster_type "provisionedclusters") }}
+      tolerations:
+{{- if eq .Values.global.cluster_type "provisionedclusters" }}
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+{{- end }}
+{{- if .Values.systemDefaultValues.azureArcAgents.tolerations }}
+{{ toYaml .Values.systemDefaultValues.azureArcAgents.tolerations | indent 8 }}
+{{- end }}
+{{- end}}
+      hostIPC: false
+      hostPID: false
+      hostNetwork: false
+      containers:
+      - name: kube-aad-proxy
+        image: "{{ .Values.systemDefaultValues.image.repository }}/{{ .Values.systemDefaultValues.image.releaseName }}/{{ .Values.systemDefaultValues.kubeAADProxy.image }}:{{ .Values.systemDefaultValues.kubeAADProxy.tag }}"
+        imagePullPolicy: {{ .Values.systemDefaultValues.image.imagePullPolicy }}
+        ports:
+        - containerPort: 8443
+          name: https
+        - containerPort: 8080
+          name: metrics
+        readinessProbe:
+            httpGet:
+              path: /readiness
+              port: 8080
+              scheme: "HTTP"
+            initialDelaySeconds: 10
+            periodSeconds: 15
+        args:
+          - "run"
+          - "--secure-port=8443"
+          - "--tls-cert-file=/etc/kube-aad-proxy/tls.crt"
+          - "--tls-private-key-file=/etc/kube-aad-proxy/tls.key"
+          - "--azure.client-id={{ .Values.systemDefaultValues.kubeAADProxy.clientId }}"
+          {{- if eq .Values.systemDefaultValues.kubeAADProxy.tenantId "" }}
+          - "--azure.tenant-id={{ .Values.global.tenantId }}"
+          {{- else }}
+          - "--azure.tenant-id={{ .Values.systemDefaultValues.kubeAADProxy.tenantId }}"
+          {{ end }}
+          - "--azure.enforce-PoP={{ .Values.systemDefaultValues.kubeAADProxy.enforcePoP }}"
+          - "--azure.skip-host-check={{ .Values.systemDefaultValues.kubeAADProxy.skipHostCheck }}"
+          - "-v={{ .Values.systemDefaultValues.kubeAADProxy.v }}"
+          {{- if eq .Values.global.azureEnvironment "AZUREDOGFOOD" }}
+          - "--azure.environment=AZURESTACKCLOUD"
+          {{- else }}
+          - "--azure.environment={{ .Values.global.azureEnvironment }}"
+          {{ end }}
+        resources:
+          {{- toYaml .Values.systemDefaultValues.kubeAADProxy.resources | nindent 12 }}
+        env:
+        {{- if eq .Values.global.azureEnvironment "AZUREDOGFOOD" }}
+        - name: AZURE_ENVIRONMENT_FILEPATH
+          value: "/etc/dogfood/environment.json"
+        - name: CONNECT_DP_ENDPOINT_OVERRIDE
+          value: {{ index .Values.systemDefaultValues "clusterconnect-agent" "connect_dp_endpoint_override" }}
+        {{ end }}
+        envFrom:
+          - configMapRef:
+              name: azure-clusterconfig
+        {{ if .Values.global.isProxyEnabled }}
+          - secretRef:
+              name: proxy-config
+        {{ end }}
+        volumeMounts:
+        {{- if and (or .Values.global.isCustomCert .Values.global.isProxyEnabled) (.Values.global.proxyCert) }}
+          - name: ssl-certs
+            mountPath: /etc/ssl/certs/
+            readOnly: false
+          - mountPath: /usr/local/share/ca-certificates/proxy-cert.crt
+            subPath: proxy-cert.crt
+            name: proxy-certstore
+        {{ end }}
+          - name: kube-aad-proxy-tls
+            mountPath: /etc/kube-aad-proxy
+            readOnly: true
+          {{- if eq .Values.global.azureEnvironment "AZUREDOGFOOD" }}
+          - name: cloudenvironment-config
+            mountPath: /etc/dogfood
+            readOnly: true
+          {{ end }}
+        securityContext:
+            {{ if not (eq .Values.global.kubernetesDistro "openshift") }}
+            runAsNonRoot: true
+            runAsUser: {{ .Values.global.containerUser}}
+            runAsGroup: {{ .Values.global.containerGroup}}
+            {{ end }}
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      - name: fluent-bit
+        image: "{{ .Values.systemDefaultValues.image.repository }}/{{ .Values.systemDefaultValues.image.releaseName }}/{{ index .Values.systemDefaultValues "fluent-bit" "image" }}:{{ index .Values.systemDefaultValues "fluent-bit" "tag" }}"
+        imagePullPolicy: {{ .Values.systemDefaultValues.image.imagePullPolicy }}
+        securityContext:
+          readOnlyRootFilesystem: true
+          {{ if eq .Values.global.kubernetesDistro "openshift" }}
+          privileged: true
+          {{end}}
+          capabilities:
+            drop:
+              - ALL
+{{ $fluentBit := index .Values.systemDefaultValues "fluent-bit" "resources" }}
+{{- if  $fluentBit  }}
+        resources:
+{{ $fluentBit | toYaml | indent 12 }}
+{{- end }}
+        envFrom:
+          - configMapRef:
+              name: azure-clusterconfig
+        env:
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: AGENT_TYPE
+            value: "ConnectAgent"
+          - name: AGENT_NAME
+            value: "kube-aad-proxy"
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log
+          readOnly: true
+        - name: varlibdockercontainers
+          mountPath: {{ index .Values.systemDefaultValues "fluent-bit" "containerLogPath" }}
+          readOnly: true
+        - name: fluentbit-clusterconfig
+          mountPath: /fluent-bit/etc/
+      volumes:
+        - name: kube-aad-proxy-tls
+          secret:
+            secretName: kube-aad-proxy-certificate
+        - name: varlog
+          hostPath:
+            path: /var/log
+        - name: varlibdockercontainers
+          hostPath:
+            path: {{ index .Values.systemDefaultValues "fluent-bit" "containerLogPath" }}
+        - name: fluentbit-clusterconfig
+          configMap:
+            name: azure-fluentbit-config
+{{- if and (or .Values.global.isCustomCert .Values.global.isProxyEnabled) (.Values.global.proxyCert) }}
+        - name: proxy-certstore
+          secret:
+            secretName: proxy-cert
+        - name: ssl-certs
+          emptyDir: {}
+{{- end }}
+{{- if eq .Values.global.azureEnvironment "AZUREDOGFOOD" }}
+        - name: cloudenvironment-config
+          configMap:
+            name: azure-cloudenvironment-config
+{{- end }}
+{{- if .Values.systemDefaultValues.azureArcAgents.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.systemDefaultValues.azureArcAgents.nodeSelector | indent 8 }}
+{{- end }}
+{{- if .Values.systemDefaultValues.azureArcAgents.affinity }}
+      affinity:
+{{ toYaml .Values.systemDefaultValues.azureArcAgents.affinity | indent 8 }}
+{{- end }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kube-aad-proxy
+  namespace: azure-arc
+  labels:
+    app.kubernetes.io/name: azure-arc-k8s
+    app.kubernetes.io/component: kube-aad-proxy
+spec:
+  type: ClusterIP
+  ports:
+    - port: 443
+      targetPort: 8443
+      protocol: TCP
+      name: https
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: metrics
+  selector:
+    app.kubernetes.io/name: azure-arc-k8s
+    app.kubernetes.io/component: kube-aad-proxy
+{{ end }}
