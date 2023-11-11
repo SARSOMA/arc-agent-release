@@ -1,3 +1,4 @@
+{{ if not .Values.systemDefaultValues.disconnectedEnvironment.enabled}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -154,3 +155,4 @@ spec:
       maxSurge: 1
       maxUnavailable: 0
 ---
+{{ end }}

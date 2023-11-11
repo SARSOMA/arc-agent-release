@@ -1,3 +1,4 @@
+{{ if not .Values.systemDefaultValues.disconnectedEnvironment.enabled}}
 {{ if and (.Values.systemDefaultValues.resourceSyncAgent.enabled) (not .Values.systemDefaultValues.appliance.enabled)}}
 apiVersion: apps/v1
 kind: Deployment
@@ -142,3 +143,4 @@ spec:
           emptyDir: {}
 {{- end }}
 {{end}}
+{{ end }}
