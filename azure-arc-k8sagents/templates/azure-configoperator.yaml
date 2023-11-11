@@ -1,3 +1,4 @@
+{{ if not .Values.systemDefaultValues.disconnectedEnvironment.enabled}}
 {{ if .Values.systemDefaultValues.gitops.enabled}}
 apiVersion: apps/v1
 kind: Deployment
@@ -156,4 +157,5 @@ spec:
 {{- end }}
       terminationGracePeriodSeconds: 10
 ---
+{{end}}
 {{end}}

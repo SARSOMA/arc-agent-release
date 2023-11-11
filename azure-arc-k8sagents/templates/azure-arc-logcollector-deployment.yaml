@@ -1,3 +1,4 @@
+{{ if not .Values.systemDefaultValues.disconnectedEnvironment.enabled}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -101,3 +102,4 @@ spec:
         - name: ssl-certs
           emptyDir: {}
 {{- end }}
+{{ end }}

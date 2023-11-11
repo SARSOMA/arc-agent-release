@@ -1,3 +1,4 @@
+{{ if not .Values.systemDefaultValues.disconnectedEnvironment.enabled}}
 {{ if .Values.systemDefaultValues.extensionoperator.enabled}}
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -103,3 +104,4 @@ spec:
     subresources:
       status: {}
 {{ end }}
+{{end}}

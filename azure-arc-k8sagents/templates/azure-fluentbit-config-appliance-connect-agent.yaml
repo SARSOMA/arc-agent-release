@@ -1,3 +1,4 @@
+{{ if not .Values.systemDefaultValues.disconnectedEnvironment.enabled}}
 {{- if .Values.systemDefaultValues.appliance.enabled }}
 apiVersion: v1
 kind: ConfigMap
@@ -205,3 +206,4 @@ data:
         Port        24224
 
 {{- end }}
+{{ end }}

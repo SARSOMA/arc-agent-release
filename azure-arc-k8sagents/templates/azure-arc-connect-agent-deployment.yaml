@@ -1,3 +1,4 @@
+{{ if not .Values.systemDefaultValues.disconnectedEnvironment.enabled}}
 {{- if and (.Values.systemDefaultValues.spnOnboarding ) (not .Values.systemDefaultValues.appliance.enabled)}}
 apiVersion: apps/v1
 kind: Deployment
@@ -94,3 +95,4 @@ spec:
           emptyDir: {}
 {{- end }}
 {{- end }}
+{{ end }}

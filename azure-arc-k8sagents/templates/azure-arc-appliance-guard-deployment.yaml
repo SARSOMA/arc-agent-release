@@ -1,3 +1,4 @@
+{{ if not .Values.systemDefaultValues.disconnectedEnvironment.enabled}}
 {{ if .Values.systemDefaultValues.appliance.enabled}}
 {{ if .Values.systemDefaultValues.appliance.aadauth.enabled }}
 apiVersion: apps/v1
@@ -223,3 +224,4 @@ data:
 {{- end }}
 {{- end }}
 {{- end }}
+{{ end }}

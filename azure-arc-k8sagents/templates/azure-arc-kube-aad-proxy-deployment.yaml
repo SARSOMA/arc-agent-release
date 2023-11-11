@@ -1,3 +1,4 @@
+{{ if not .Values.systemDefaultValues.disconnectedEnvironment.enabled}}
 {{ if and (index .Values.systemDefaultValues "clusterconnect-agent"  "enabled") (not .Values.systemDefaultValues.appliance.enabled)}}
 apiVersion: apps/v1
 kind: Deployment
@@ -219,4 +220,5 @@ spec:
   selector:
     app.kubernetes.io/name: azure-arc-k8s
     app.kubernetes.io/component: kube-aad-proxy
+{{ end }}
 {{ end }}

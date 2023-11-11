@@ -1,3 +1,4 @@
+{{ if not .Values.systemDefaultValues.disconnectedEnvironment.enabled}}
 {{ if and (.Values.systemDefaultValues.fluxlogsagent.enabled) (not .Values.systemDefaultValues.appliance.enabled)}}
 apiVersion: apps/v1
 kind: Deployment
@@ -105,4 +106,5 @@ spec:
   - protocol: TCP
     port: 80
     targetPort: 8082
+{{end}}
 {{end}}

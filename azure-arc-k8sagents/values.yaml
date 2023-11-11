@@ -148,6 +148,8 @@ systemDefaultValues:
     enabled: false
     oid: ""
   debugLogging: false
+  disconnectedEnvironment:
+    enabled: false
   extensionEventsCollector:
     enabledDataplane: false
     enabledService: true

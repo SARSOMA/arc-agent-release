@@ -1,3 +1,4 @@
+{{ if not .Values.systemDefaultValues.disconnectedEnvironment.enabled}}
 {{ if and (index .Values.systemDefaultValues "clusterconnect-agent"  "enabled") (not .Values.systemDefaultValues.appliance.enabled)}}
 {{- if eq .Values.global.azureEnvironment "AZUREDOGFOOD" }}
 apiVersion: v1
@@ -8,5 +9,6 @@ metadata:
 data:
   environment.json: |-
 {{ .Files.Get "dogfood/DogFoodEnvironment.json" | indent 4 }}
+{{ end }}
 {{ end }}
 {{ end }}

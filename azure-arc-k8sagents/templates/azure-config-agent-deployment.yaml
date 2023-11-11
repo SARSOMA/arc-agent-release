@@ -92,6 +92,7 @@ spec:
               subPath: proxy-cert.crt
               name: proxy-certstore
 {{- end }}
+{{ if not .Values.systemDefaultValues.disconnectedEnvironment.enabled}}
         - name: fluent-bit
           image: "{{ .Values.systemDefaultValues.image.repository }}/{{ .Values.systemDefaultValues.image.releaseName }}/{{ index .Values.systemDefaultValues "fluent-bit" "image" }}:{{ index .Values.systemDefaultValues "fluent-bit" "tag" }}"
           imagePullPolicy: {{ .Values.systemDefaultValues.image.imagePullPolicy }}
@@ -129,6 +130,7 @@ spec:
             readOnly: true
           - name: fluentbit-clusterconfig
             mountPath: /fluent-bit/etc/
+{{ end }}
       volumes:
         - name: varlog
           hostPath:

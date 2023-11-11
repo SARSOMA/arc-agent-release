@@ -1,3 +1,4 @@
+{{ if not .Values.systemDefaultValues.disconnectedEnvironment.enabled}}
 {{ if and (and (index .Values.systemDefaultValues "clusterconnect-agent"  "enabled") (not .Values.systemDefaultValues.appliance.enabled)) (not .Values.global.isLeastPrivilegesMode) }}
 apiVersion: v1
 kind: ServiceAccount
@@ -81,4 +82,5 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: azure-arc-kube-aad-proxy-sa
+{{ end }}
 {{ end }}

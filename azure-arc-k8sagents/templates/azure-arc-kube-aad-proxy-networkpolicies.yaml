@@ -1,3 +1,4 @@
+{{ if not .Values.systemDefaultValues.disconnectedEnvironment.enabled}}
 {{ if and (index .Values.systemDefaultValues "clusterconnect-agent"  "enabled") (not .Values.systemDefaultValues.appliance.enabled) }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -33,3 +34,4 @@ spec:
            app.kubernetes.io/name: azure-arc-k8s
            app.kubernetes.io/component: metrics-agent
 {{end}}
+{{ end }}

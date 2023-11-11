@@ -1,3 +1,4 @@
+{{ if not .Values.systemDefaultValues.disconnectedEnvironment.enabled}}
 {{ if and (and (and (index .Values.systemDefaultValues "clusterconnect-agent"  "enabled") (not .Values.systemDefaultValues.appliance.enabled)) (eq .Values.global.kubernetesDistro "openshift")) (not .Values.global.isLeastPrivilegesMode) }}
 kind: SecurityContextConstraints
 apiVersion: security.openshift.io/v1
@@ -27,4 +28,5 @@ volumes:
   - secret
 users:
   - system:serviceaccount:azure-arc:azure-arc-kube-aad-proxy-sa
+{{end}}
 {{end}}
