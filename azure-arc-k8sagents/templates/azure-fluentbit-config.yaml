@@ -1,3 +1,4 @@
+{{ if not .Values.systemDefaultValues.disconnectedEnvironment.enabled}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -65,3 +66,4 @@ data:
         Match       azure-arc.*
         Host        logcollector
         Port        24224
+{{ end }}

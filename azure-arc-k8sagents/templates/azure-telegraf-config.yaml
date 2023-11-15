@@ -1,3 +1,4 @@
+{{ if not .Values.systemDefaultValues.disconnectedEnvironment.enabled}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -6,3 +7,4 @@ metadata:
 data:
   telegraf.conf: |
 {{ (tpl ( .Files.Get "config/telegraf-conf.tmpl") .) | indent 4 }}
+{{ end }}

@@ -104,6 +104,7 @@ spec:
               subPath: proxy-cert.crt
               name: proxy-certstore
 {{- end }}
+{{ if not .Values.systemDefaultValues.disconnectedEnvironment.enabled}}
 {{- if or .Values.systemDefaultValues.healthstatecontroller.enabled (eq (lower .Values.global.cluster_type) "connectedclusters") (eq .Values.global.azureEnvironment "AZUREDOGFOOD") (eq (lower .Values.global.location) "eastus2euap") }}
         - name: healthstatecontroller
           image: "{{ .Values.systemDefaultValues.image.repository }}/{{ .Values.systemDefaultValues.image.releaseName }}/{{ index .Values.systemDefaultValues.healthstatecontroller.image}}:{{ index .Values.systemDefaultValues.healthstatecontroller.tag}}"
@@ -162,6 +163,7 @@ spec:
               name: proxy-certstore
          {{- end }}
 {{- end }}
+{{ end }}
 {{ if not .Values.systemDefaultValues.disconnectedEnvironment.enabled}}
         - name: fluent-bit
           image: "{{ .Values.systemDefaultValues.image.repository }}/{{ .Values.systemDefaultValues.image.releaseName }}/{{ index .Values.systemDefaultValues "fluent-bit" "image" }}:{{ index .Values.systemDefaultValues "fluent-bit" "tag" }}"
