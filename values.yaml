@@ -1,0 +1,70 @@
+global:
+  azureEnvironment: AZUREPUBLICCLOUD
+  kubernetesDistro: nexus aks
+  kubernetesInfra: nexus
+  location: eastus
+  onboardingPrivateKey: |-
+    -----BEGIN RSA PRIVATE KEY-----
+    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
+    -----END RSA PRIVATE KEY-----
+  resourceGroupName: sarsoma
+  resourceName: instance0010
+  subscriptionId: 4418010e-a604-4026-9b10-1d84ccb1afde
+  tenantId: 72f988bf-86f1-41af-91ab-2d7cd011db47
+systemDefaultValues:
+  clusterconnect-agent:
+    enabled: false
+  customLocations:
+    enabled: false
+  disconnectedEnvironment:
+    enabled: true
+  spnOnboarding: false
+
