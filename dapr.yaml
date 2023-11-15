@@ -1,0 +1,24 @@
+apiVersion: clusterconfig.azure.com/v1beta1
+kind: ExtensionConfig
+metadata:
+    finalizers:
+    - Extension.Controller.Finalizer
+    name: instance0003ext3
+    namespace: dapr-system
+spec:
+    autoUpgradeMinorVersion: true
+    correlationId: 56ef96a9-8a6c-4aea-b531-9eb4829276e9
+    eventOperationId: 1bfb809f-2efb-4bb0-8981-c23098488bab
+    extensionRegistrationTime: 1697525544825
+    extensionType: microsoft.dapr
+    lastModifiedTime: "2023-11-06T23:41:00Z"
+    operationId: fa2d7d32-d96d-4744-8ae6-dc4c66ef23d5
+    operationTriggerType: Create
+    parameter:
+      scope: cluster
+    protectedParameters:
+      referenceName: ""
+      version: ""
+    releaseTrain: stable
+    repoUrl: https://mcr.microsoft.com/daprio/helmchart/dapr-aks-extension
+    version: 1.12.0

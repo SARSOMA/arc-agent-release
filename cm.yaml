@@ -1,0 +1,8 @@
+apiVersion: v1
+data:
+  extensionconfig_dapr-system_instance0003ext3: '{"scope":"cluster","artifactPath":"https://mcr.microsoft.com/daprio/helmchart/dapr-aks-extension"}'
+kind: ConfigMap
+metadata:
+  name: extension-immutable-values
+  namespace: azure-arc
+
