@@ -1,0 +1,12 @@
+{
+    "tags": {},
+    "location": "eastus",
+    "identity": {
+        "type": "SystemAssigned"
+    },
+    "properties": {
+        "agentPublicKeyCertificate": "MIICCgKCAgEAseJMg37uv+gPKYWYrR8OSzE3Du3Yk3MaV5k/bc1x5itF1oZfSY6TIVa5MJjCJBaRs98qQMG2LNgPAWj+HzAk5+hU56mluuaYwH4slcjqrmbyqJzip/iy+7eJPMymxL/Vpbh1H4cquAocTDYQ/pEVCN8ZlLwJBZNa5asBlswWjBkQ0zo/X6ujNC4fepftsWYw6eRBz2jY+vNJmoqi2oM7yJeUA5Xm1tcybDuu7F3uZ6Go4FwlkcNgcwHeNY3lRmp3wolC8tDPV9L+t00d/ydCRfmTYSI5asKM0GH58/olLNVhWtnZqnpEFvfU1acBlygWVF7Iad/rFANmyaAQ8e2awcLMivXYgNcXEe09KTHpISSBS40wT8f/7VbZ1+8q4zAQGZHA6VhI/10tMLTA49Szz0AEPvn/CtiFJEIpOBrfUCf6dT+7tAL6Z4AmMEengTn6m3ytAYu51pQiETcmCca8GN3M70YJvFkuUYzi9Do1HryxgGxf0wAlHlXQqt3UTLnyMp+PnQNSHvGVEKU7rgnnNxSNJJU9qAJjE2hwkh2RI6zran7r2dw2g36XfUh3G7lSNLJBVLj/eetMQV3JatBR5nEpGoiEzAfI0zSPpzOnKdKI5mU2JCgr2yvh3SAU4FmX0exW/SXKqvUOEsigGjijbm/+mr9l08TF4y4hUb0Jqk0CAwEAAQ==",
+        "distribution": "generic",
+        "infrastructure": "generic"
+    }
+}

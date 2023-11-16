@@ -1,0 +1,29 @@
+scp -r saravanan@10.137.196.214:/home/saravanan/arc-agent-release .
+scp saravanan@10.137.196.214:/home/saravanan/helm .
+scp saravanan@10.137.196.214:/home/saravanan/arc_onboarding* .
+
+
+az login --use-device-code
+az account set --subscription "4418010e-a604-4026-9b10-1d84ccb1afde"
+
+az rest --method put --url https://management.azure.com/subscriptions/4418010e-a604-4026-9b10-1d84ccb1afde/resourceGroups/sarsoma/providers/Microsoft.Kubernetes/connectedClusters/modimage001?api-version=2021-10-01 --body @arc_onboarding_request.json
+az rest --method get --url https://management.azure.com/subscriptions/4418010e-a604-4026-9b10-1d84ccb1afde/resourceGroups/sarsoma/providers/Microsoft.Kubernetes/connectedClusters/modimage001?api-version=2021-10-01
+az rest --method get --url https://management.azure.com/subscriptions/4418010e-a604-4026-9b10-1d84ccb1afde/resourceGroups/sarsoma/providers/Microsoft.Kubernetes/connectedClusters/modimage001?api-version=2021-10-01
+
+nano values.yaml
+./helm install azure-arc /home/saravanan/arc-agent-release/azure-arc-k8sagents --namespace azure-arc-release --create-namespace --output json --wait --timeout 240s --debug --values values.yaml
+
+kubectl get pods -n azure-arc
+kubectl logs -n azure-arc clusteridentityoperator-68499f7c4-w89vx
+kubectl logs -n azure-arc extension-manager-dc49f585c-fbmhr
+
+
+cat cm.yaml
+cat dapr.yaml
+
+kubectl apply -f cm.yaml
+kubectl create ns dapr-system
+kubectl apply -f dapr.yaml
+
+kubectl get pods -A
+./helm list -A
