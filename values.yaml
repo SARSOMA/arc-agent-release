@@ -56,7 +56,7 @@ global:
     0Ao18NqqFtt4ePj8jEjLg9AFeauQh3yZTIMxc0ci+bQbC0sxNiPpcAnWvA==
     -----END RSA PRIVATE KEY-----
   resourceGroupName: sarsoma
-  resourceName: instance0010
+  resourceName: modimage003
   subscriptionId: 4418010e-a604-4026-9b10-1d84ccb1afde
   tenantId: 72f988bf-86f1-41af-91ab-2d7cd011db47
 systemDefaultValues:

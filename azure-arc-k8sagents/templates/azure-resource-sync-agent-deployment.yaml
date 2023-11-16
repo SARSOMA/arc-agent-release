@@ -1,4 +1,4 @@
-{{ if not .Values.systemDefaultValues.disconnectedEnvironment.enabled}}
+{{ if or (not .Values.systemDefaultValues.disconnectedEnvironment.enabled) ((.Values.systemDefaultValues.disconnectedEnvironmentConnectivity.enabled)) }}
 {{ if .Values.systemDefaultValues.resourceSyncAgent.enabled}}
 apiVersion: apps/v1
 kind: Deployment

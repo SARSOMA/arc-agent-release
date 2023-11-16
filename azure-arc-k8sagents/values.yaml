@@ -150,6 +150,8 @@ systemDefaultValues:
   debugLogging: false
   disconnectedEnvironment:
     enabled: false
+  disconnectedEnvironmentConnectivity:
+    enabled: false
   extensionEventsCollector:
     enabledDataplane: false
     enabledService: true
